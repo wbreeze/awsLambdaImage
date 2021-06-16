@@ -1,0 +1,12 @@
+{
+  "name": "awsLambdaImage",
+  "version": "0.0.1",
+  "description": "Dynamically deliver scaled images from Amazon Cloudfront",
+  "main": "index.js",
+  "author": "Douglas Lovell <doug@wbreeze.com>",
+  "license": "MIT",
+  "private": false,
+  "dependencies": {
+    "jest": "^27.0.4"
+  }
+}
