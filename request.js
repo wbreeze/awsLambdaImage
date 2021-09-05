@@ -1,9 +1,13 @@
 'use strict';
 
 const WxHParser = {
-  // parse the size, "d" from the query string.
-  // Look for parameter d with value <width>x<height> where width and height
-  //   are integers, e.g. "d=300x200"
+  // parse image size from the specification string.
+  // Look for string with value "<width>x<height>" where width and height
+  //   are integers strings, e.g. "300x200"
+  // Or simply an integer, e.g. "300"
+  // return { w: <width>, h: <height> } with <width> and <height> as
+  //   numeric Integer values
+  // return null if the specification is not valid
   parseWxH: (dimSpec) => {
     let dimension = null
     const dimensionMatch = dimSpec.split("x");
@@ -48,9 +52,11 @@ exports.QueryStringParser = {
 //   e.g. "https://300x200/image.jpeg" returns { w:300, h:200 }
 // A single integer dimension is valid as well, and is applied to both,
 //   e.g. "https://300/image.jpeg" returns { w:300, h:300 }
-// return null if second to last path element is not present or formatted
-//   incorrectly, otherwise return
-// { w: <width>, h: <height> } where <width> and <height> are integers
+// Memoize the path prefix before the dimensions specification,
+//   the image name and the image extension
+// If the second to last path element d does not have a valid dimension
+//   specificaton, leave dimensions unspecified and include the last path
+//   element in the memoized prefix.
 exports.URIParser = (uri) => {
     let parser = {};
 
