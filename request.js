@@ -42,8 +42,27 @@ exports.QueryStringParser = {
   }
 };
 
+// parse the size, "d" from the uri
+// Look for second to last path element d with value <width>x<height>
+//   where width and height are integers,
+//   e.g. "https://300x200/image.jpeg" returns { w:300, h:200 }
+// A single integer dimension is valid as well, and is applied to both,
+//   e.g. "https://300/image.jpeg" returns { w:300, h:300 }
+// return null if second to last path element is not present or formatted
+//   incorrectly, otherwise return
+// { w: <width>, h: <height> } where <width> and <height> are integers
 exports.URIParser = {
   dimension: (uri) => {
+    let dimension = null;
+
+    const match = uri.match(/(.*)\/([^\/]*)\/([^\/]*)/);
+
+    if (match) {
+      let dimSpec = match[2];
+      dimension = WxHParser.parseWxH(dimSpec);
+    }
+
+    return dimension;
   }
 };
 
@@ -60,7 +79,9 @@ exports.ImageRequestHandler = {
   // determine requested image dimensions from the request
   requestDimension: (request) => {
     const qsp = exports.QueryStringParser;
-    return qsp.dimension(request.queryString);
+    const urip = exports.URIParser;
+    return qsp.dimension(request.queryString) ||
+      urip.dimension(request.uri);
   }
 };
 
