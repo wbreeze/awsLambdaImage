@@ -1,40 +1,102 @@
-const urip = require("../request.js").URIParser;
+const URIParser = require("../request.js").URIParser;
 
 describe('Parses uri for dimensions', () => {
   it('finds width and height', () => {
-    let dims = urip.dimension('https://this/path/to/300x400/image.jpeg')
+    let urip = URIParser('https://this/path/to/300x400/image.jpeg')
+    let dims = urip.dimensions();
     expect(dims.w).toEqual(300)
     expect(dims.h).toEqual(400)
   });
 
   it('returns null for no dimensions found', () => {
-    let dims = urip.dimension('https://this/path/to/nodims/image.jpeg')
-    expect(dims).toBe(null)
+    let urip = URIParser('https://this/path/to/nodims/image.jpeg')
+    expect(urip.dimensions()).toBe(null)
   });
 
   it('returns null if width is not an integer', () => {
-    let dims = urip.dimension('https://this/path/to/abcx300/image.jpeg')
-    expect(dims).toBe(null)
+    let urip = URIParser('https://this/path/to/abcx300/image.jpeg')
+    expect(urip.dimensions()).toBe(null)
   });
 
   it('returns null if height is not an integer', () => {
-    let dims = urip.dimension('https://this/path/to/300xabc/image.jpeg')
-    expect(dims).toBe(null)
+    let urip = URIParser('https://this/path/to/300xabc/image.jpeg')
+    expect(urip.dimensions()).toBe(null)
   });
 
   it('returns equal width and height if "x" omitted', () => {
-    let dims = urip.dimension('https://this/path/to/300/image.jpeg')
+    let urip = URIParser('https://this/path/to/300/image.jpeg')
+    let dims = urip.dimensions();
     expect(dims.w).toEqual(300)
     expect(dims.h).toEqual(300)
   });
 
   it('returns null if there are too many "x"', () => {
-    let dims = urip.dimension('https://this/path/to/300x400x500/image.jpeg')
-    expect(dims).toBe(null)
+    let urip = URIParser('https://this/path/to/300x400x500/image.jpeg')
+    expect(urip.dimensions()).toBe(null)
   });
 
   it('returns null if the path is short', () => {
-    let dims = urip.dimension('https://image.jpeg')
-    expect(dims).toBe(null)
+    let urip = URIParser('https://image.jpeg')
+    expect(urip.dimensions()).toBe(null)
+  });
+});
+
+describe('Parses uri for prefix', () => {
+  it('returns prefix minus dimensions if dimensions present', () => {
+    let urip = URIParser('https://this/path/to/300/image.jpeg')
+    let prefix = urip.prefix();
+    expect(prefix).toEqual('https://this/path/to')
+  });
+
+  it('returns full prefix if dimensions not present', () => {
+    let urip = URIParser('https://this/path/to/image.jpeg')
+    let prefix = urip.prefix();
+    expect(prefix).toEqual('https://this/path/to')
+  });
+
+  it('returns full prefix if dimensions not valid', () => {
+    let urip = URIParser('https://this/path/to/abcx300/image.jpeg')
+    let prefix = urip.prefix();
+    expect(prefix).toEqual('https://this/path/to/abcx300')
+  });
+});
+
+describe('Parses uri for image name', () => {
+  it('returns image name if dimensions present', () => {
+    let urip = URIParser('https://this/path/to/300/image.jpeg')
+    let name = urip.imageName();
+    expect(name).toEqual('image');
+  });
+
+  it('returns image name if dimensions not present', () => {
+    let urip = URIParser('https://this/path/to/image.jpeg')
+    let name = urip.imageName();
+    expect(name).toEqual('image');
+  });
+
+  it('returns image name if dimensions not valid', () => {
+    let urip = URIParser('https://this/path/to/abcx300/image.jpeg')
+    let name = urip.imageName();
+    expect(name).toEqual('image');
+  });
+});
+
+describe('Parses uri for image extension', () => {
+  it('returns image ext if dimensions present', () => {
+    let urip = URIParser('https://this/path/to/300/image.jpeg')
+    let ext = urip.imageExtension();
+    expect(ext).toEqual('jpeg');
+  });
+
+  it('returns image ext if dimensions not present', () => {
+    let urip = URIParser('https://this/path/to/image.jpeg')
+    let ext = urip.imageExtension();
+    expect(ext).toEqual('jpeg');
+  });
+
+  it('returns image ext if dimensions not valid', () => {
+    let urip = URIParser('https://this/path/to/abcx300/image.jpeg')
+    let ext = urip.imageExtension();
+    expect(ext).toEqual('jpeg');
   });
 });

@@ -23,7 +23,7 @@ const WxHParser = {
   }
 };
 
-// parse the size, "d" from the query string.
+// parse the image dimensions from the query string.
 // Look for parameter d with value <width>x<height> where width and height
 //   are integers, e.g. "d=300x200" returns { w:300, h:200 }
 // A single integer dimension is valid as well, and is applied to both, e.g.
@@ -42,7 +42,7 @@ exports.QueryStringParser = {
   }
 };
 
-// parse the size, "d" from the uri
+// parse the image dimensions from the uri
 // Look for second to last path element d with value <width>x<height>
 //   where width and height are integers,
 //   e.g. "https://300x200/image.jpeg" returns { w:300, h:200 }
@@ -51,19 +51,49 @@ exports.QueryStringParser = {
 // return null if second to last path element is not present or formatted
 //   incorrectly, otherwise return
 // { w: <width>, h: <height> } where <width> and <height> are integers
-exports.URIParser = {
-  dimension: (uri) => {
-    let dimension = null;
+exports.URIParser = (uri) => {
+    let parser = {};
 
-    const match = uri.match(/(.*)\/([^\/]*)\/([^\/]*)/);
-
+    parser.parseElements = () => {
+    let elements = null;
+    const match = uri.match(/(.*)\/([^\/]*)\/([^\/]*)\.(.*)/);
     if (match) {
-      let dimSpec = match[2];
-      dimension = WxHParser.parseWxH(dimSpec);
+      elements = {
+        prefix: match[1],
+        dimSpec: match[2],
+        name: match[3],
+        extension: match[4]
+      }
+      const dims = WxHParser.parseWxH(elements.dimSpec);
+      if (!dims) {
+        elements.prefix = elements.prefix + '/' + elements.dimSpec;
+        elements.dimSpec = null;
+      }
     }
+    return elements;
+  };
 
-    return dimension;
+  parser.dimensions = () => {
+    const elems = parser.parseElements();
+    return (elems && elems.dimSpec) ? WxHParser.parseWxH(elems.dimSpec) : null;
+  };
+
+  parser.prefix = () => {
+    const elems = parser.parseElements();
+    return (elems && elems.prefix) ? elems.prefix : null;
+  };
+
+  parser.imageName = () => {
+    const elems = parser.parseElements();
+    return (elems && elems.name) ? elems.name : null;
   }
+
+  parser.imageExtension = () => {
+    const elems = parser.parseElements();
+    return (elems && elems.extension) ? elems.extension : null;
+  }
+
+  return parser;
 };
 
 exports.ImageRequestHandler = {
@@ -79,9 +109,8 @@ exports.ImageRequestHandler = {
   // determine requested image dimensions from the request
   requestDimension: (request) => {
     const qsp = exports.QueryStringParser;
-    const urip = exports.URIParser;
-    return qsp.dimension(request.queryString) ||
-      urip.dimension(request.uri);
+    const urip = exports.URIParser(uri);
+    return qsp.dimension(request.queryString) || urip.dimensions();
   }
 };
 
@@ -105,17 +134,8 @@ exports.handler = (event, context, callback) => {
     // fetch the uri of original image
     let fwdUri = request.uri;
 
-    // parse the prefix, image name and extension from the uri.
-    // In our case /images/image.jpg
-
-    const match = fwdUri.match(/(.*)\/(.*)\.(.*)/);
-
-    let prefix = match[1];
-    let imageName = match[2];
-    let extension = match[3];
-
     // define variable to be set to true if requested dimension is allowed.
-    let matchFound = false;
+    let validDimension = false;
 
     // calculate the acceptable variance. If image dimension is 105 and is within acceptable
     // range, then in our case, the dimension would be corrected to 100.
@@ -127,13 +147,13 @@ exports.handler = (event, context, callback) => {
         if(width >= minWidth && width <= maxWidth){
             width = dimension.w;
             height = dimension.h;
-            matchFound = true;
+            validDimension = true;
             break;
         }
     }
     // if no match is found from allowed dimension with variance then set to default
     //dimensions.
-    if(!matchFound){
+    if(!validDimension){
         width = variables.defaultDimension.w;
         height = variables.defaultDimension.h;
     }
@@ -141,9 +161,9 @@ exports.handler = (event, context, callback) => {
     // read the accept header to determine if webP is supported.
     let accept = headers['accept']?headers['accept'][0].value:"";
 
-    let url = [];
     // build the new uri to be forwarded upstream
-    url.push(prefix);
+    let url = [];
+    url.push(irh.prefix());
     url.push(width+"x"+height);
 
     // check support for webp
@@ -151,9 +171,9 @@ exports.handler = (event, context, callback) => {
         url.push(variables.webpExtension);
     }
     else{
-        url.push(extension);
+        url.push(irh.extension());
     }
-    url.push(imageName+"."+extension);
+    url.push(irh.imageName() + "." + irh.extension());
 
     fwdUri = url.join("/");
 
