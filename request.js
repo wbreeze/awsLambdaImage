@@ -105,88 +105,94 @@ exports.URIParser = (uri) => {
   return parser;
 };
 
-exports.ImageRequestHandler = {
-  // defines the allowed dimensions, default dimensions and how much variance from allowed
-  // dimension is allowed.
-  variables: {
-        allowedDimension : [ {w:600,h:600}, {w:1200,h:1200}, {w:2400,h:2400} ],
-        defaultDimension : {w:600,h:600},
-        variance: 200,
-        webpExtension: 'webp'
-  },
+exports.ImageRequestBuilder = (request) => {
+  let builder = {};
+
+  // defines the allowed dimension requests
+  builder.allowedDimensions = [
+      { w:600, h:600 },
+      { w:1200, h:1200 },
+      { w:2400, h:2400 },
+      { w:3600, h:3600 }
+    ];
+
+  // file extension for requests that accept webp format
+  builder.webpExtension = 'webp';
+
+  builder.uriParser = () => {
+    if (builder.memoizedParser === undefined) {
+      builder.memoizedParser = exports.URIParser(request.uri)
+    }
+    return builder.memoizedParser;
+  }
 
   // determine requested image dimensions from the request
-  requestDimension: (request) => {
+  builder.requestDimension = () => {
     const qsp = exports.QueryStringParser;
-    const urip = exports.URIParser(uri);
+    const urip = builder.uriParser();
     return qsp.dimension(request.queryString) || urip.dimensions();
+  };
+
+  // find the smallest allowed dimension greater than that requested
+  // not finding one, return the greatest allowed size
+  builder.allowedDimension = (dimRequested) => {
+    let allowed =
+      builder.allowedDimensions[builder.allowedDimensions.length - 1];
+    if (dimRequested && dimRequested.h && dimRequested.w) {
+      for (let dimension of builder.allowedDimensions) {
+        if (dimRequested.h <= dimension.h &&
+            dimRequested.w <= dimension.w
+        ) {
+          allowed = dimension;
+          break;
+        }
+      }
+    }
+    return allowed;
   }
+
+  // build edge request url of format /images/200x200/webp/image.jpg
+  builder.edgeRequest = () => {
+    let edgeURI = request.uri;
+    const dims = builder.requestDimension();
+
+    if (dims) {
+      const parser = builder.uriParser(request.uri);
+      const normalized = builder.allowedDimension(dims);
+      const headers = request.headers;
+
+      // read the accept header to determine if webP is supported.
+      let accept = request.headers['accept'] || [];
+
+      // build the new uri to be forwarded upstream
+      let url = [];
+      url.push(parser.prefix());
+      url.push(normalized.w + "x" + normalized.h);
+
+      // check support for webp
+      if (accept.includes(builder.webpExtension)) {
+          url.push(builder.webpExtension);
+      }
+      else{
+          url.push(parser.imageExtension());
+      }
+      url.push(parser.imageName() + "." + parser.imageExtension());
+
+      edgeURI = url.join("/");
+    }
+    return edgeURI;
+  }
+
+  return builder;
 };
 
 exports.handler = (event, context, callback) => {
     const request = event.Records[0].cf.request;
-    const headers = request.headers;
+    const irb = exports.ImageRequestBuilder(request);
+    const fwdURI = irb.edgeRequest()
 
-    const irh = exports.ImageRequestHandler;
-    const dims = irh.requestDimension(request);
-
-    // if there is no dimension attribute, just pass the request
-    if (!dims) {
-        callback(null, request);
-        return;
+    if (fwdURI) {
+      request.uri = fwdUri;
     }
-
-    // set the width and height parameters
-    let width = dims.w;
-    let height = dims.h;
-
-    // fetch the uri of original image
-    let fwdUri = request.uri;
-
-    // define variable to be set to true if requested dimension is allowed.
-    let validDimension = false;
-
-    // calculate the acceptable variance. If image dimension is 105 and is within acceptable
-    // range, then in our case, the dimension would be corrected to 100.
-    let variancePercent = (variables.variance/100);
-
-    for (let dimension of variables.allowedDimension) {
-        let minWidth = dimension.w - (dimension.w * variancePercent);
-        let maxWidth = dimension.w + (dimension.w * variancePercent);
-        if(width >= minWidth && width <= maxWidth){
-            width = dimension.w;
-            height = dimension.h;
-            validDimension = true;
-            break;
-        }
-    }
-    // if no match is found from allowed dimension with variance then set to default
-    //dimensions.
-    if(!validDimension){
-        width = variables.defaultDimension.w;
-        height = variables.defaultDimension.h;
-    }
-
-    // read the accept header to determine if webP is supported.
-    let accept = headers['accept']?headers['accept'][0].value:"";
-
-    // build the new uri to be forwarded upstream
-    let url = [];
-    url.push(irh.prefix());
-    url.push(width+"x"+height);
-
-    // check support for webp
-    if (accept.includes(variables.webpExtension)) {
-        url.push(variables.webpExtension);
-    }
-    else{
-        url.push(irh.extension());
-    }
-    url.push(irh.imageName() + "." + irh.extension());
-
-    fwdUri = url.join("/");
-
-    // final modified url is of format /images/200x200/webp/image.jpg
-    request.uri = fwdUri;
     callback(null, request);
 };
