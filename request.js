@@ -1,38 +1,83 @@
 'use strict';
 
-const querystring = require('querystring');
+const WxHParser = {
+  // parse the size, "d" from the query string.
+  // Look for parameter d with value <width>x<height> where width and height
+  //   are integers, e.g. "d=300x200"
+  parseWxH: (dimSpec) => {
+    let dimension = null
+    const dimensionMatch = dimSpec.split("x");
+    if (dimensionMatch.length == 1) {
+      const dim = parseInt(dimensionMatch[0])
+      dimension = { w: dim, h: dim }
+    } else if (dimensionMatch.length === 2) {
+      dimension = {
+        w: parseInt(dimensionMatch[0]),
+        h: parseInt(dimensionMatch[1])
+      }
+    }
+    if (dimension && (isNaN(dimension.w) || isNaN(dimension.h))) {
+      dimension = null
+    }
+    return dimension
+  }
+};
 
-// defines the allowed dimensions, default dimensions and how much variance from allowed
-// dimension is allowed.
+// parse the size, "d" from the query string.
+// Look for parameter d with value <width>x<height> where width and height
+//   are integers, e.g. "d=300x200" returns { w:300, h:200 }
+// A single integer dimension is valid as well, and is applied to both, e.g.
+//   "d=300" returns { w:300, h:300 }
+// return null if d not present or formatted incorrectly, otherwise return
+//   { w: <width>, h: <height> } where <width> and <height> are integers
+exports.QueryStringParser = {
+  queryStringDimension: (query) => {
+    const querystring = require('querystring');
+    const params = querystring.parse(query);
+    let dimension = null
+    if (params.d) {
+      dimension = WxHParser.parseWxH(params.d);
+    }
+    return dimension
+  }
+};
 
-const variables = {
-        allowedDimension : [ {w:100,h:100}, {w:200,h:200}, {w:300,h:300}, {w:400,h:400} ],
-        defaultDimension : {w:200,h:200},
-        variance: 20,
+exports.ImageRequestHandler = {
+  // defines the allowed dimensions, default dimensions and how much variance from allowed
+  // dimension is allowed.
+  variables: {
+        allowedDimension : [ {w:600,h:600}, {w:1200,h:1200}, {w:2400,h:2400} ],
+        defaultDimension : {w:600,h:600},
+        variance: 200,
         webpExtension: 'webp'
-  };
+  },
+
+  // determine requested image dimensions from the request
+  requestDimension: (request) => {
+    const qsp = exports.QueryStringParser;
+    return qsp.queryStringDimension(request.queryString);
+  }
+};
 
 exports.handler = (event, context, callback) => {
     const request = event.Records[0].cf.request;
     const headers = request.headers;
 
-    // parse the querystrings key-value pairs. In our case it would be d=100x100
-    const params = querystring.parse(request.querystring);
-
-    // fetch the uri of original image
-    let fwdUri = request.uri;
+    const irh = exports.ImageRequestHandler;
+    const dims = irh.requestDimension(request);
 
     // if there is no dimension attribute, just pass the request
-    if(!params.d){
+    if (!dims) {
         callback(null, request);
         return;
     }
-    // read the dimension parameter value = width x height and split it by 'x'
-    const dimensionMatch = params.d.split("x");
 
     // set the width and height parameters
-    let width = dimensionMatch[0];
-    let height = dimensionMatch[1];
+    let width = dims.w;
+    let height = dims.h;
+
+    // fetch the uri of original image
+    let fwdUri = request.uri;
 
     // parse the prefix, image name and extension from the uri.
     // In our case /images/image.jpg
@@ -74,7 +119,7 @@ exports.handler = (event, context, callback) => {
     // build the new uri to be forwarded upstream
     url.push(prefix);
     url.push(width+"x"+height);
-  
+
     // check support for webp
     if (accept.includes(variables.webpExtension)) {
         url.push(variables.webpExtension);
