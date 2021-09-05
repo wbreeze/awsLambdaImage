@@ -55,20 +55,23 @@ exports.URIParser = (uri) => {
     let parser = {};
 
     parser.parseElements = () => {
-    let elements = null;
-    const match = uri.match(/(.*)\/([^\/]*)\/([^\/]*)\.(.*)/);
-    if (match) {
-      elements = {
-        prefix: match[1],
-        dimSpec: match[2],
-        name: match[3],
-        extension: match[4]
+    let elements = parser.elements;
+    if (elements === undefined) {
+      const match = uri.match(/(.*)\/([^\/]*)\/([^\/]*)\.(.*)/);
+      if (match) {
+        elements = {
+          prefix: match[1],
+          dimSpec: match[2],
+          name: match[3],
+          extension: match[4]
+        }
+        const dims = WxHParser.parseWxH(elements.dimSpec);
+        if (!dims) {
+          elements.prefix = elements.prefix + '/' + elements.dimSpec;
+          elements.dimSpec = null;
+        }
       }
-      const dims = WxHParser.parseWxH(elements.dimSpec);
-      if (!dims) {
-        elements.prefix = elements.prefix + '/' + elements.dimSpec;
-        elements.dimSpec = null;
-      }
+      parser.elements = elements;
     }
     return elements;
   };

@@ -100,3 +100,17 @@ describe('Parses uri for image extension', () => {
     expect(ext).toEqual('jpeg');
   });
 });
+
+describe('Memoizes uri for size, prefix, image name, and extension', () => {
+  it('returns memoized values', () => {
+    let urip = URIParser('https://this/is/the/way/to/800/grandma.png')
+    let ext = urip.imageExtension();
+    const memo = urip.elements;
+    expect(memo).toBeDefined();
+    expect(ext).toEqual('png');
+    expect(urip.imageName()).toEqual('grandma');
+    expect(urip.prefix()).toEqual('https://this/is/the/way/to');
+    expect(urip.dimensions()).toEqual({ w:800, h:800 });
+    expect(urip.elements).toBe(memo);
+  });
+});
