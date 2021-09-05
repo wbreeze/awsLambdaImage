@@ -31,7 +31,7 @@ const WxHParser = {
 // return null if d not present or formatted incorrectly, otherwise return
 //   { w: <width>, h: <height> } where <width> and <height> are integers
 exports.QueryStringParser = {
-  queryStringDimension: (query) => {
+  dimension: (query) => {
     const querystring = require('querystring');
     const params = querystring.parse(query);
     let dimension = null
@@ -39,6 +39,11 @@ exports.QueryStringParser = {
       dimension = WxHParser.parseWxH(params.d);
     }
     return dimension
+  }
+};
+
+exports.URIParser = {
+  dimension: (uri) => {
   }
 };
 
@@ -55,7 +60,7 @@ exports.ImageRequestHandler = {
   // determine requested image dimensions from the request
   requestDimension: (request) => {
     const qsp = exports.QueryStringParser;
-    return qsp.queryStringDimension(request.queryString);
+    return qsp.dimension(request.queryString);
   }
 };
 
