@@ -13,7 +13,7 @@ exports.URIParser = (uri) => {
   }
 
   // parse the prefix, width, height and image name
-  // Ex: key=images/200x200/webp/image.jpg
+  // Ex: uri=images/200x200/webp/image.jpg
   parser.getParts = () => {
     if (parser.memoizedParts === undefined) {
       let parts = {}
@@ -21,16 +21,18 @@ exports.URIParser = (uri) => {
       // parse the prefix, width, height and image name
       // Ex: key=images/200x200/webp/image.jpg
       try {
-        const match = uri.match(/(.*)\/(\d+)x(\d+)\/([^\/]+)\/([^\/]+)/);
+        const match = uri.match(
+          /https?:\/(.*)\/(\d+)x(\d+)\/([^\/]+)\/([^\/]+)/
+        );
         parts.prefix = match[1];
         parts.width = parseInt(match[2], 10);
         parts.height = parseInt(match[3], 10);
         parts.requiredFormat = parser.imageFormat(match[4]);
         parts.imageName = match[5];
-        parts.originalKey = parts.prefix + "/" + parts.imageName;
+        parts.sourceKey = parts.prefix + "/" + parts.imageName;
       }
       catch (err) {
-        // no prefix exist for image..
+        // no prefix for image..
         console.log("no prefix present.. " + err);
         const match = uri.match(/(\d+)x(\d+)\/(.*)\/(.*)/);
         parts.prefix = "";
@@ -38,8 +40,14 @@ exports.URIParser = (uri) => {
         parts.height = parseInt(match[2], 10);
         parts.requiredFormat = parser.imageFormat(match[3]);
         parts.imageName = match[4];
-        parts.originalKey = parts.imageName;
+        parts.sourceKey = parts.imageName;
       }
+      parts.scaledKey = [
+        parts.prefix,
+        (parts.width + 'x' +  parts.height),
+        parts.requiredFormat,
+        parts.imageName
+      ].join('/');
 
       parser.memoizedParts = parts;
     }
@@ -52,8 +60,6 @@ exports.URIParser = (uri) => {
 exports.handler = (event, context, callback) => {
   let response = event.Records[0].cf.response;
 
-  console.log("Response status code :%s", response.status);
-
   //check if image is not present
   if (response.status == 404) {
     let request = event.Records[0].cf.request;
@@ -63,20 +69,13 @@ exports.handler = (event, context, callback) => {
     });
     const Sharp = require('sharp');
 
-    // read the required path. Ex: uri /images/100x100/webp/image.jpg
-    const path = request.uri;
-    console.log(path);
-
-    // read the S3 key from the path variable.
-    // Ex: path variable /images/100x100/webp/image.jpg
-    let key = path.substring(1);
-    console.log(key);
-
-    const uriParser = exports.URIParser(path);
-    const parts = uriParser.getParts(key);
+    // read the required path.
+    // e.g. /images/100x100/webp/image.jpg
+    const uriParser = exports.URIParser(request.uri);
+    const parts = uriParser.getParts();
 
     // get the source image file
-    S3.getObject({ Bucket: BUCKET, Key: parts.originalKey }).promise()
+    S3.getObject({ Bucket: BUCKET, Key: parts.sourceKey }).promise()
       // perform the resize operation
       .then(data => Sharp(data.Body)
         .resize(parts.width, parts.height)
@@ -90,13 +89,15 @@ exports.handler = (event, context, callback) => {
             Bucket: BUCKET,
             ContentType: 'image/' + parts.requiredFormat,
             CacheControl: 'max-age=31536000',
-            Key: key,
+            Key: parts.scaledKey,
             StorageClass: 'STANDARD'
         }).promise()
-        // even if there is exception in saving the object we send back the generated
-        // image back to viewer below
-        .catch(() => { console.log("Exception while writing resized image to bucket")});
+        .catch(() => {
+          console.log("Exception while writing resized image to bucket")
+        });
 
+        // even if there is exception in saving the object we send the
+        // generated image back to viewer
         // generate a binary response with resized image
         response.status = 200;
         response.body = buffer.toString('base64');
