@@ -59,6 +59,11 @@ describe('Parses uri for prefix', () => {
     let prefix = urip.prefix();
     expect(prefix).toEqual('https://this/path/to/abcx300')
   });
+
+  it('returns valid prefix if the path is short', () => {
+    let urip = URIParser('https://image.jpeg')
+    expect(urip.prefix()).toEqual('https:/')
+  });
 });
 
 describe('Parses uri for image name', () => {
