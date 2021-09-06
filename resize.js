@@ -1,17 +1,53 @@
 'use strict';
 
-const http = require('http');
-const https = require('https');
-const querystring = require('querystring');
-
-const AWS = require('aws-sdk');
-const S3 = new AWS.S3({
-  signatureVersion: 'v4',
-});
-const Sharp = require('sharp');
-
 // set the S3 and API GW endpoints
 const BUCKET = 'image-resize-${AWS::AccountId}-us-east-1';
+
+exports.URIParser = (uri) => {
+  let parser = {};
+
+  // correction for jpg required for 'Sharp'
+  parser.imageFormat = (spec) => {
+    const format = spec.toLowerCase();
+    return format == 'jpg' ? 'jpeg' : format
+  }
+
+  // parse the prefix, width, height and image name
+  // Ex: key=images/200x200/webp/image.jpg
+  parser.getParts = () => {
+    if (parser.memoizedParts === undefined) {
+      let parts = {}
+
+      // parse the prefix, width, height and image name
+      // Ex: key=images/200x200/webp/image.jpg
+      try {
+        const match = uri.match(/(.*)\/(\d+)x(\d+)\/([^\/]+)\/([^\/]+)/);
+        parts.prefix = match[1];
+        parts.width = parseInt(match[2], 10);
+        parts.height = parseInt(match[3], 10);
+        parts.requiredFormat = parser.imageFormat(match[4]);
+        parts.imageName = match[5];
+        parts.originalKey = parts.prefix + "/" + parts.imageName;
+      }
+      catch (err) {
+        // no prefix exist for image..
+        console.log("no prefix present.. " + err);
+        const match = uri.match(/(\d+)x(\d+)\/(.*)\/(.*)/);
+        parts.prefix = "";
+        parts.width = parseInt(match[1], 10);
+        parts.height = parseInt(match[2], 10);
+        parts.requiredFormat = parser.imageFormat(match[3]);
+        parts.imageName = match[4];
+        parts.originalKey = parts.imageName;
+      }
+
+      parser.memoizedParts = parts;
+    }
+    return parser.memoizedParts;
+  }
+
+  return parser;
+}
 
 exports.handler = (event, context, callback) => {
   let response = event.Records[0].cf.response;
@@ -20,61 +56,31 @@ exports.handler = (event, context, callback) => {
 
   //check if image is not present
   if (response.status == 404) {
-
     let request = event.Records[0].cf.request;
-    let params = querystring.parse(request.querystring);
-
-    // if there is no dimension attribute, just pass the response
-    if (!params.d) {
-      callback(null, response);
-      return;
-    }
-
-    // read the dimension parameter value = width x height and split it by 'x'
-    let dimensionMatch = params.d.split("x");
+    const AWS = require('aws-sdk');
+    const S3 = new AWS.S3({
+      signatureVersion: 'v4',
+    });
+    const Sharp = require('sharp');
 
     // read the required path. Ex: uri /images/100x100/webp/image.jpg
-    let path = request.uri;
+    const path = request.uri;
+    console.log(path);
 
     // read the S3 key from the path variable.
     // Ex: path variable /images/100x100/webp/image.jpg
     let key = path.substring(1);
+    console.log(key);
 
-    // parse the prefix, width, height and image name
-    // Ex: key=images/200x200/webp/image.jpg
-    let prefix, originalKey, match, width, height, requiredFormat, imageName;
-    let startIndex;
-
-    try {
-      match = key.match(/(.*)\/(\d+)x(\d+)\/(.*)\/(.*)/);
-      prefix = match[1];
-      width = parseInt(match[2], 10);
-      height = parseInt(match[3], 10);
-
-      // correction for jpg required for 'Sharp'
-      requiredFormat = match[4] == "jpg" ? "jpeg" : match[4];
-      imageName = match[5];
-      originalKey = prefix + "/" + imageName;
-    }
-    catch (err) {
-      // no prefix exist for image..
-      console.log("no prefix present..");
-      match = key.match(/(\d+)x(\d+)\/(.*)\/(.*)/);
-      width = parseInt(match[1], 10);
-      height = parseInt(match[2], 10);
-
-      // correction for jpg required for 'Sharp'
-      requiredFormat = match[3] == "jpg" ? "jpeg" : match[3];
-      imageName = match[4];
-      originalKey = imageName;
-    }
+    const uriParser = exports.URIParser(path);
+    const parts = uriParser.getParts(key);
 
     // get the source image file
-    S3.getObject({ Bucket: BUCKET, Key: originalKey }).promise()
+    S3.getObject({ Bucket: BUCKET, Key: parts.originalKey }).promise()
       // perform the resize operation
       .then(data => Sharp(data.Body)
-        .resize(width, height)
-        .toFormat(requiredFormat)
+        .resize(parts.width, parts.height)
+        .toFormat(parts.requiredFormat)
         .toBuffer()
       )
       .then(buffer => {
@@ -82,7 +88,7 @@ exports.handler = (event, context, callback) => {
         S3.putObject({
             Body: buffer,
             Bucket: BUCKET,
-            ContentType: 'image/' + requiredFormat,
+            ContentType: 'image/' + parts.requiredFormat,
             CacheControl: 'max-age=31536000',
             Key: key,
             StorageClass: 'STANDARD'
@@ -95,7 +101,11 @@ exports.handler = (event, context, callback) => {
         response.status = 200;
         response.body = buffer.toString('base64');
         response.bodyEncoding = 'base64';
-        response.headers['content-type'] = [{ key: 'Content-Type', value: 'image/' + requiredFormat }];
+        response.headers['content-type'] = [
+          { key: 'Content-Type',
+            value: 'image/' + parts.requiredFormat
+          }
+        ];
         callback(null, response);
       })
     .catch( err => {
