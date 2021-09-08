@@ -39,6 +39,16 @@ describe('Parses uri for dimensions', () => {
     let urip = URIParser('https://image.jpeg')
     expect(urip.dimensions()).toBe(null)
   });
+
+  it('returns null if element contains non-digit characters', () => {
+    let urip = URIParser('https://path/to/2017-09-03/Las-Tijeras.html')
+    expect(urip.dimensions()).toBe(null)
+  });
+
+  it('returns null if element is one non-digit character', () => {
+    let urip = URIParser('https://path/to/x/Las-Tijeras.html')
+    expect(urip.dimensions()).toBe(null)
+  });
 });
 
 describe('Parses uri for prefix', () => {

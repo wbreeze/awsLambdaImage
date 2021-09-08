@@ -1,6 +1,17 @@
 'use strict';
 
-const WxHParser = {
+const WxHParser = () => {
+  let parser = {}
+
+  parser.parseIntegerStrictly = (strel) => {
+      let dim = NaN;
+      const digits = strel.split(/[^\d]/)
+      if (digits.length === 1) {
+        dim = parseInt(strel);
+      }
+      return dim;
+  },
+
   // parse image size from the specification string.
   // Look for string with value "<width>x<height>" where width and height
   //   are integers strings, e.g. "300x200"
@@ -8,16 +19,16 @@ const WxHParser = {
   // return { w: <width>, h: <height> } with <width> and <height> as
   //   numeric Integer values
   // return null if the specification is not valid
-  parseWxH: (dimSpec) => {
+  parser.parseWxH = (dimSpec) => {
     let dimension = null
     const dimensionMatch = dimSpec.split("x");
     if (dimensionMatch.length == 1) {
-      const dim = parseInt(dimensionMatch[0])
+      const dim = parser.parseIntegerStrictly(dimensionMatch[0])
       dimension = { w: dim, h: dim }
     } else if (dimensionMatch.length === 2) {
       dimension = {
-        w: parseInt(dimensionMatch[0]),
-        h: parseInt(dimensionMatch[1])
+        w: parser.parseIntegerStrictly(dimensionMatch[0]),
+        h: parser.parseIntegerStrictly(dimensionMatch[1])
       }
     }
     if (dimension && (isNaN(dimension.w) || isNaN(dimension.h))) {
@@ -25,6 +36,8 @@ const WxHParser = {
     }
     return dimension
   }
+
+  return parser;
 };
 
 // parse the image dimensions from the query string.
@@ -40,7 +53,7 @@ exports.QueryStringParser = {
     const params = querystring.parse(query);
     let dimension = null
     if (params.d) {
-      dimension = WxHParser.parseWxH(params.d);
+      dimension = WxHParser().parseWxH(params.d);
     }
     return dimension
   }
@@ -71,7 +84,7 @@ exports.URIParser = (uri) => {
           name: match[3],
           extension: match[4]
         }
-        const dims = WxHParser.parseWxH(elements.dimSpec);
+        const dims = WxHParser().parseWxH(elements.dimSpec);
         if (!dims) {
           elements.prefix = elements.prefix + '/' + elements.dimSpec;
           elements.dimSpec = null;
@@ -84,7 +97,7 @@ exports.URIParser = (uri) => {
 
   parser.dimensions = () => {
     const elems = parser.parseElements();
-    return (elems && elems.dimSpec) ? WxHParser.parseWxH(elems.dimSpec) : null;
+    return (elems && elems.dimSpec) ? WxHParser().parseWxH(elems.dimSpec) : null;
   };
 
   parser.prefix = () => {
