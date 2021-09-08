@@ -33,7 +33,7 @@ exports.URIParser = (uri) => {
       }
       catch (err) {
         // no prefix for image..
-        console.log("no prefix present.. " + err);
+        // console.log("no prefix present.. " + err);
         const match = uri.match(/(\d+)x(\d+)\/(.*)\/(.*)/);
         parts.prefix = "";
         parts.width = parseInt(match[1], 10);
