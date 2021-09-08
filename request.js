@@ -71,33 +71,22 @@ exports.QueryStringParser = {
 //   specificaton, leave dimensions unspecified and include the last path
 //   element in the memoized prefix.
 exports.URIParser = (uri) => {
-    let parser = {};
+  let parser = {};
 
-    parser.parseElements = () => {
+  parser.parseElements = () => {
     let elements = parser.elements;
     if (elements === undefined) {
-      const match = uri.match(/(.*)\/([^\/]*)\/([^\/]*)\.(.*)/);
+      const match = uri.match(/(.*)\/([^\/]+)\.([^\/]+)/);
       if (match) {
         elements = {
           prefix: match[1],
-          dimSpec: match[2],
-          name: match[3],
-          extension: match[4]
-        }
-        const dims = WxHParser().parseWxH(elements.dimSpec);
-        if (!dims) {
-          elements.prefix = elements.prefix + '/' + elements.dimSpec;
-          elements.dimSpec = null;
+          name: match[2],
+          extension: match[3]
         }
       }
       parser.elements = elements;
     }
     return elements;
-  };
-
-  parser.dimensions = () => {
-    const elems = parser.parseElements();
-    return (elems && elems.dimSpec) ? WxHParser().parseWxH(elems.dimSpec) : null;
   };
 
   parser.prefix = () => {
@@ -142,8 +131,7 @@ exports.ImageRequestBuilder = (request) => {
   // determine requested image dimensions from the request
   builder.requestDimension = () => {
     const qsp = exports.QueryStringParser;
-    const urip = builder.uriParser();
-    return qsp.dimension(request.queryString) || urip.dimensions();
+    return qsp.dimension(request.queryString);
   };
 
   // find the smallest allowed dimension greater than that requested

@@ -30,19 +30,10 @@ describe('Modifies URI of request with image dimensions and format', () => {
     expect(edge).toEqual('https://path/to/600x600/jpeg/image.jpeg');
   });
 
-  it('inserts dimensions from second to last in path', () => {
-    const testURI = 'https://path/to/300/image.jpeg'
-    const builder = ImageRequestBuilder(
-      RequestBuilder(testURI, null, false)
-    )
-    const edge = builder.edgeRequest();
-    expect(edge).toEqual('https://path/to/600x600/jpeg/image.jpeg');
-  });
-
   it('substitutes webp if accepted', () => {
-    const testURI = 'https://path/to/300/image.jpeg'
+    const testURI = 'https://path/to/image.jpeg'
     const builder = ImageRequestBuilder(
-      RequestBuilder(testURI, null, true)
+      RequestBuilder(testURI, 'd=300', true)
     )
     const edge = builder.edgeRequest();
     expect(edge).toEqual('https://path/to/600x600/webp/image.jpeg');
