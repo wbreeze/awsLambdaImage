@@ -193,7 +193,7 @@ exports.handler = (event, context, callback) => {
     const fwdURI = irb.edgeRequest()
 
     if (fwdURI) {
-      request.uri = fwdUri;
+      request.uri = fwdURI;
     }
     callback(null, request);
 };
