@@ -9,7 +9,8 @@
   "private": false,
   "dependencies": {
     "aws-sdk": "^2.984.0",
-    "querystring": "^0.2.1"
+    "querystring": "^0.2.1",
+    "sharp": "^0.30.5"
   },
   "scripts": {
     "test": "jest",
