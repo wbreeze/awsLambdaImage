@@ -156,6 +156,7 @@ exports.ImageRequestBuilder = (request) => {
   builder.edgeRequest = () => {
     let edgeURI = request.uri;
     const dims = builder.requestDimension();
+    console.log("dims is " + JSON.stringify(dims));
 
     if (dims) {
       const parser = builder.uriParser(request.uri);
@@ -181,6 +182,7 @@ exports.ImageRequestBuilder = (request) => {
 
       edgeURI = url.join("/");
     }
+    console.log("edge URI is " + JSON.stringify(edgeURI));
     return edgeURI;
   }
 
