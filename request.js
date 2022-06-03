@@ -190,7 +190,9 @@ exports.ImageRequestBuilder = (request) => {
 };
 
 exports.handler = (event, context, callback) => {
+    console.log("event is " + JSON.stringify(event));
     const request = event.Records[0].cf.request;
+    console.log("request is " + JSON.stringify(request));
     const irb = exports.ImageRequestBuilder(request);
     const fwdURI = irb.edgeRequest()
 
