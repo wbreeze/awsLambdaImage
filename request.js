@@ -107,7 +107,7 @@ exports.URIParser = (uri) => {
   return parser;
 };
 
-exports.ImageRequestBuilder = (request) => {
+exports.ImageRequestBuilder = (uri, query, accept) => {
   let builder = {};
 
   // defines the allowed dimension requests
@@ -123,7 +123,7 @@ exports.ImageRequestBuilder = (request) => {
 
   builder.uriParser = () => {
     if (builder.memoizedParser === undefined) {
-      builder.memoizedParser = exports.URIParser(request.uri)
+      builder.memoizedParser = exports.URIParser(uri)
     }
     return builder.memoizedParser;
   }
@@ -131,7 +131,7 @@ exports.ImageRequestBuilder = (request) => {
   // determine requested image dimensions from the request
   builder.requestDimension = () => {
     const qsp = exports.QueryStringParser;
-    return qsp.dimension(request.queryString);
+    return qsp.dimension(query);
   };
 
   // find the smallest allowed dimension greater than that requested
@@ -154,46 +154,54 @@ exports.ImageRequestBuilder = (request) => {
 
   // build edge request url of format /images/200x200/webp/image.jpg
   builder.edgeRequest = () => {
-    let edgeURI = request.uri;
+    let edgeURI = uri;
     const dims = builder.requestDimension();
     console.log("dims is " + JSON.stringify(dims));
 
     if (dims) {
-      const parser = builder.uriParser(request.uri);
+      const parser = builder.uriParser(uri);
       const normalized = builder.allowedDimension(dims);
-      const headers = request.headers;
-
-      // read the accept header to determine if webP is supported.
-      let accept = request.headers['accept'] || [];
 
       // build the new uri to be forwarded upstream
-      let url = [];
-      url.push(parser.prefix());
-      url.push(normalized.w + "x" + normalized.h);
+      let parts = [];
+      parts.push(parser.prefix());
+      parts.push(normalized.w + "x" + normalized.h);
 
       // check support for webp
+      console.log("Accept is " + accept);
       if (accept.includes(builder.webpExtension)) {
-          url.push(builder.webpExtension);
+          parts.push(builder.webpExtension);
       }
       else{
-          url.push(parser.imageExtension());
+          parts.push(parser.imageExtension());
       }
-      url.push(parser.imageName() + "." + parser.imageExtension());
+      parts.push(parser.imageName() + "." + parser.imageExtension());
 
-      edgeURI = url.join("/");
+      edgeURI = parts.join("/");
     }
-    console.log("edge URI is " + JSON.stringify(edgeURI));
+
+    console.log("edge URI is " + edgeURI);
     return edgeURI;
   }
 
   return builder;
 };
 
+exports.parseEvent = (event) => {
+  let request = event.Records[0].cf.request;
+  console.log("request is " + JSON.stringify(request));
+  return {
+    "uri": request.uri ?? "",
+    "query": request.querystring ?? "",
+    "accept": request.headers.accept[0].value ?? ""
+  }
+}
+
 exports.handler = (event, context, callback) => {
     console.log("event is " + JSON.stringify(event));
-    const request = event.Records[0].cf.request;
-    console.log("request is " + JSON.stringify(request));
-    const irb = exports.ImageRequestBuilder(request);
+    const params = parseEvent(event);
+    const irb = exports.ImageRequestBuilder(
+      params.uri, params.querystring, params.accept);
     const fwdURI = irb.edgeRequest()
 
     if (fwdURI) {
