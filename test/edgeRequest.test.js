@@ -1,5 +1,6 @@
 const ImageRequestBuilder = require("../request.js").ImageRequestBuilder;
 const parseEvent = require("../request.js").parseEvent;
+const handler = require("../request.js").handler;
 
 const EventBuilder = (uri, query, doAcceptWebp) => {
     const accept = doAcceptWebp ? "webp" : "jpeg";
@@ -80,5 +81,16 @@ describe('Modifies URI of request with image dimensions and format', () => {
     expect(parms.uri).toEqual(uri);
     expect(parms.query).toEqual(querystring);
     expect(parms.accept).toEqual(accept);
+  });
+
+  it('executes the handler', () => {
+    const querystring = "d=600x600";
+    const uri = "/IMG_8932.png";
+    const event = EventBuilder(uri, querystring, true);
+    handler(event, null, (event, request)=>{
+      expect(request.uri).toContain(uri);
+      expect(request.uri).toContain("webp");
+      expect(request.querystring).toHaveLength(0);
+    })
   });
 });

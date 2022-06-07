@@ -35,5 +35,6 @@ describe('Parses query parameters for dimensions', () => {
 
   it('returns null if there are too many "x"', () => {
     let dims = qsp.dimension('d=300x400x500')
+    expect(dims).toBe(null)
   });
 });

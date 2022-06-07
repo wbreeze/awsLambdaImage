@@ -191,6 +191,7 @@ exports.parseEvent = (event) => {
   let request = event.Records[0].cf.request;
   console.log("request is " + JSON.stringify(request));
   return {
+    "request": request,
     "uri": request.uri ?? "",
     "query": request.querystring ?? "",
     "accept": request.headers.accept[0].value ?? ""
@@ -199,13 +200,15 @@ exports.parseEvent = (event) => {
 
 exports.handler = (event, context, callback) => {
     console.log("event is " + JSON.stringify(event));
-    const params = parseEvent(event);
+    const params = exports.parseEvent(event);
     const irb = exports.ImageRequestBuilder(
-      params.uri, params.querystring, params.accept);
+      params.uri, params.query, params.accept);
     const fwdURI = irb.edgeRequest()
+    let request = params.request
 
     if (fwdURI) {
       request.uri = fwdURI;
+      request.querystring = "";
     }
     callback(null, request);
 };
