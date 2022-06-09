@@ -1,7 +1,14 @@
 'use strict';
 
-// set the S3 and API GW endpoints
-const BUCKET = 'image-resize-${AWS::AccountId}-us-east-1';
+const {
+  S3Client, GetObjectCommand, PutObjectCommand
+} = require("@aws-sdk/client-s3");
+const S3 = new S3Client();
+const Sharp = require('sharp');
+
+const SRC_BUCKET = process.env.AWS_S3_RESIZE_SRC_NAME;
+const DST_BUCKET = process.env.AWS_S3_RESIZE_DST_NAME;
+const BUCKETS_REGION = process.env.AWS_S3_RESIZE_REGION;
 
 exports.URIParser = (uri) => {
   let parser = {};
@@ -57,64 +64,108 @@ exports.URIParser = (uri) => {
   return parser;
 }
 
-exports.handler = (event, context, callback) => {
-  let response = event.Records[0].cf.response;
+exports.ImageHandler = (request, response) => {
+  let scaler = {};
 
-  //check if image is not present
-  if (response.status == 404) {
-    let request = event.Records[0].cf.request;
-    const AWS = require('aws-sdk');
-    const S3 = new AWS.S3({
-      signatureVersion: 'v4',
-    });
-    const Sharp = require('sharp');
+  // returns a promise of response
+  scaler.processRequest = () => {
+    console.log("Image source bucket is " + SRC_BUCKET);
+    console.log("Image destination bucket is " + DST_BUCKET);
+    console.log("Image bucket region is " + BUCKETS_REGION);
 
     // read the required path.
     // e.g. /images/100x100/webp/image.jpg
     const uriParser = exports.URIParser(request.uri);
     const parts = uriParser.getParts();
+    console.log("ImageHandler image locator " + JSON.stringify(parts));
 
-    // get the source image file
-    S3.getObject({ Bucket: BUCKET, Key: parts.sourceKey }).promise()
-      // perform the resize operation
-      .then(data => Sharp(data.Body)
-        .resize(parts.width, parts.height)
-        .toFormat(parts.requiredFormat)
-        .toBuffer()
-      )
-      .then(buffer => {
-        // save the resized object to S3 bucket with appropriate object key.
-        S3.putObject({
-            Body: buffer,
-            Bucket: BUCKET,
-            ContentType: 'image/' + parts.requiredFormat,
-            CacheControl: 'max-age=31536000',
-            Key: parts.scaledKey,
-            StorageClass: 'STANDARD'
-        }).promise()
-        .catch(() => {
-          console.log("Exception while writing resized image to bucket")
-        });
+    return scaler.retrieveImage(parts)
+    .then(result => scaler.scaleImage(parts, result.Body))
+    .then([_, imgResponse] => imgResponse)
+    .catch(err => console.log("Exception while reading source image :%j",err));
+  };
 
+  // returns a promise of a GetObjectCommandOutput object
+  scaler.retrieveImage = (parts) => {
+    const command = new GetObjectCommand({
+      "Bucket": SRC_BUCKET,
+      "Key": parts.sourceKey
+    });
+    return S3.send(command);
+  };
+
+  // returns a promise of [PutObjectCommandOutput, response]
+  scaler.scaleImage = (parts, data) => {
+    return Sharp(data.Body)
+    .resize(parts.width, parts.height)
+    .toFormat(parts.requiredFormat)
+    .toBuffer()
+    .then(buffer => doResponseInParallel(buffer));
+  };
+
+  // returns a promise of [PutObjectCommandOutput, response]
+  scaler.doResponseInParallel = (buffer) => {
+    return Promise.allSettled([
+        scaler.writeImageCache(buffer),
         // even if there is exception in saving the object we send the
         // generated image back to viewer
-        // generate a binary response with resized image
-        response.status = 200;
-        response.body = buffer.toString('base64');
-        response.bodyEncoding = 'base64';
-        response.headers['content-type'] = [
-          { key: 'Content-Type',
-            value: 'image/' + parts.requiredFormat
-          }
-        ];
-        callback(null, response);
-      })
-    .catch( err => {
-      console.log("Exception while reading source image :%j",err);
-    });
-  } // end of if block checking response statusCode
-  else {
-    // allow the response to pass through
-    callback(null, response);
+        scaler.generateImageResponse(buffer)
+    ]);
   }
+
+  // write resized image to S3 destination bucket
+  // returns a promise of PutObjectCommandOutput
+  scaler.writeImageCache = (buffer) => {
+    const command = new PutObjectCommand({
+      Body: buffer,
+      Bucket: DST_BUCKET,
+      ContentType: 'image/' + parts.requiredFormat,
+      CacheControl: 'max-age=31536000',
+      Key: parts.scaledKey
+    });
+    return S3.send(command)
+    .catch((err) => {
+      console.log("Exception writing %s to bucket is: %j",
+        parts.scaledKey, err);
+    });
+  };
+
+  // generate a binary response with resized image
+  // returns a promise resolvehd with a response object
+  scaler.generateImageResponse = (buffer) => {
+    response.status = 200;
+    response.body = buffer.toString('base64');
+    response.bodyEncoding = 'base64';
+    response.headers['content-type'] = [
+      { key: 'Content-Type',
+        value: 'image/' + parts.requiredFormat
+      }
+    ];
+    return Promise.resolve(response);
+  };
+
+  return scaler;
+};
+
+// returns a promise of a response
+exports.processEvent = (event) => {
+  let responsePromise;
+  let response = event.Records[0].cf.response;
+  if (response.status == 404) {
+    let request = event.Records[0].cf.request;
+    let imageHandler = exports.ImageHandler(request, response);
+    responsePromise = imageHandler.processRequest()
+    .catch(err => {
+      console.log("Error responding with scaled image is %j", err);
+      return response;
+    });
+  } else {
+    responsePromise = Promise.resolve(response);
+  }
+  return responsePromise;
+}
+
+exports.handler = (event, context, callback) => {
+  console.log("Event is " + JSON.stringify(event));
+  exports.processEvent(event).finally(response => callback(null, response));
 };
