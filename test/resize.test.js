@@ -88,21 +88,29 @@ function mockedImageHandler(
   request, response, failRetrieve, failScale, failWrite
 ) {
   let handler = ImageHandler(request, response);
-  handler.writeImageCache = (parts, buffer) => {
-    return failWrite ? Promise.reject("write") : Promise.resolve("write");
+  handler.retrieveImage = (parts) => {
+    return failRetrieve ?
+      Promise.reject("read") :
+      Promise.resolve("this is image data");
   }
   handler.scaleImage = (parts, data) => {
-    return failScale ? Promise.reject("scale") : Promise.resolve("scale");
+    return failScale ?
+      Promise.reject("scale") :
+      ImageHandler.doResponseInParallel(parts, data);
   }
-  handler.retrieveImage = (parts) => {
-    return failRetrieve ? Promise.reject("read") : Promise.resolve("read");
+  handler.writeImageCache = (parts, buffer) => {
+    return failWrite ?
+      Promise.reject("failed write").catch(err => {
+        console.log("Simulated failed write " + err);
+      }):
+      Promise.resolve("successful write");
   }
   return handler;
 }
 
 describe('ImageHandler processing', () => {
   it('generates an image response', () => {
-    let ih = mockedImageHandler(mockRequest, mockResponse, true, true, true);
+    let ih = mockedImageHandler(mockRequest, mockResponse, false, false, false);
     const parts = { "requiredFormat": "jpeg" };
     return expect(ih.generateImageResponse(parts, mockBuffer))
       .resolves.toEqual(successResponse);
@@ -110,17 +118,17 @@ describe('ImageHandler processing', () => {
 
   it('returns original response on failure to read image', () => {
     let ih = mockedImageHandler(mockRequest, mockResponse, true, true, true);
-    return expect(ih.processRequest()).resolves.toEqual(mockResponse);
+    return expect(ih.processResponse()).resolves.toEqual(mockResponse);
   });
 
   it('returns original response on failure to scale image', () => {
     let ih = mockedImageHandler(mockRequest, mockResponse, false, true, true);
-    return expect(ih.processRequest()).resolves.toEqual(mockResponse);
+    return expect(ih.processResponse()).resolves.toEqual(mockResponse);
   });
 
-  it('returns modified response on failure to write cache', () => {
+  it('generates an image response on failure to write cache', () => {
     let ih = mockedImageHandler(mockRequest, mockResponse, false, false, true);
-    return expect(ih.processRequest()).resolves.toEqual(successResponse);
+    return expect(ih.processResponse()).resolves.toEqual(successResponse);
   });
 });
 

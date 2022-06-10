@@ -40,14 +40,13 @@ exports.URIParser = (uri) => {
       }
       catch (err) {
         // no prefix for image..
-        // console.log("no prefix present.. " + err);
-        const match = uri.match(/(\d+)x(\d+)\/(.*)\/(.*)/);
-        parts.prefix = "";
-        parts.width = parseInt(match[1], 10);
-        parts.height = parseInt(match[2], 10);
-        parts.requiredFormat = parser.imageFormat(match[3]);
-        parts.imageName = match[4];
-        parts.sourceKey = parts.imageName;
+        const match = uri.match(/(.*)\/(\d+)x(\d+)\/(.*)\/(.*)/);
+        parts.prefix = match[1];
+        parts.width = parseInt(match[2], 10);
+        parts.height = parseInt(match[3], 10);
+        parts.requiredFormat = parser.imageFormat(match[4]);
+        parts.imageName = match[5];
+        parts.sourceKey = parts.prefix + "/" + parts.imageName;
       }
       parts.scaledKey = [
         parts.prefix,
@@ -68,21 +67,26 @@ exports.ImageHandler = (request, response) => {
   let scaler = {};
 
   // returns a promise of response
-  scaler.processRequest = () => {
+  scaler.processResponse = () => {
     console.log("Image source bucket is " + SRC_BUCKET);
     console.log("Image destination bucket is " + DST_BUCKET);
     console.log("Image bucket region is " + BUCKETS_REGION);
+    console.log("Image request is " + JSON.stringify(request));
+    console.log("Image response is " + JSON.stringify(response));
 
     // read the required path.
     // e.g. /images/100x100/webp/image.jpg
-    const uriParser = exports.URIParser(request.uri);
+    const uriParser = exports.URIParser(response.uri);
     const parts = uriParser.getParts();
-    console.log("ImageHandler image locator " + JSON.stringify(parts));
+    console.log("Image locator parts " + JSON.stringify(parts));
 
     return scaler.retrieveImage(parts)
     .then(result => scaler.scaleImage(parts, result.Body))
-    .then([_, imgResponse] => imgResponse)
-    .catch(err => console.log("Exception while reading source image :%j",err));
+    .then(([_, imgResponse]) => imgResponse)
+    .catch(err => {
+      console.log("Exception while reading source image :%j",err);
+      return response;
+    });
   };
 
   // returns a promise of a GetObjectCommandOutput object
@@ -100,22 +104,22 @@ exports.ImageHandler = (request, response) => {
     .resize(parts.width, parts.height)
     .toFormat(parts.requiredFormat)
     .toBuffer()
-    .then(buffer => doResponseInParallel(buffer));
+    .then(buffer => doResponseInParallel(parts, buffer));
   };
 
   // returns a promise of [PutObjectCommandOutput, response]
-  scaler.doResponseInParallel = (buffer) => {
+  scaler.doResponseInParallel = (parts, buffer) => {
     return Promise.allSettled([
-        scaler.writeImageCache(buffer),
+        scaler.writeImageCache(parts, buffer),
         // even if there is exception in saving the object we send the
         // generated image back to viewer
-        scaler.generateImageResponse(buffer)
+        scaler.generateImageResponse(parts, buffer)
     ]);
   }
 
   // write resized image to S3 destination bucket
   // returns a promise of PutObjectCommandOutput
-  scaler.writeImageCache = (buffer) => {
+  scaler.writeImageCache = (parts, buffer) => {
     const command = new PutObjectCommand({
       Body: buffer,
       Bucket: DST_BUCKET,
@@ -132,7 +136,7 @@ exports.ImageHandler = (request, response) => {
 
   // generate a binary response with resized image
   // returns a promise resolvehd with a response object
-  scaler.generateImageResponse = (buffer) => {
+  scaler.generateImageResponse = (parts, buffer) => {
     response.status = 200;
     response.body = buffer.toString('base64');
     response.bodyEncoding = 'base64';
@@ -141,6 +145,7 @@ exports.ImageHandler = (request, response) => {
         value: 'image/' + parts.requiredFormat
       }
     ];
+    console.log("Generated image response is " + JSON.stringify(response));
     return Promise.resolve(response);
   };
 
@@ -154,11 +159,7 @@ exports.processEvent = (event) => {
   if (response.status == 404) {
     let request = event.Records[0].cf.request;
     let imageHandler = exports.ImageHandler(request, response);
-    responsePromise = imageHandler.processRequest()
-    .catch(err => {
-      console.log("Error responding with scaled image is %j", err);
-      return response;
-    });
+    responsePromise = imageHandler.processResponse();
   } else {
     responsePromise = Promise.resolve(response);
   }
