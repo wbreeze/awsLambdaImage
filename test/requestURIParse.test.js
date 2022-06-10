@@ -1,6 +1,6 @@
 const URIParser = require("../request.js").URIParser;
 
-describe('Parses uri for prefix', () => {
+describe('URIParser uri for prefix', () => {
   it('returns prefix with numeric element last in path', () => {
     let urip = URIParser('https://this/path/to/300/image.jpeg')
     let prefix = urip.prefix();
@@ -19,7 +19,7 @@ describe('Parses uri for prefix', () => {
   });
 });
 
-describe('Parses uri for image name', () => {
+describe('URIParser uri for image name', () => {
   it('returns image name if dimensions present', () => {
     let urip = URIParser('https://this/path/to/300/image.jpeg')
     let name = urip.imageName();
@@ -39,7 +39,7 @@ describe('Parses uri for image name', () => {
   });
 });
 
-describe('Parses uri for image extension', () => {
+describe('URIParser uri for image extension', () => {
   it('returns image ext if dimensions present', () => {
     let urip = URIParser('https://this/path/to/300/image.jpeg')
     let ext = urip.imageExtension();
@@ -59,7 +59,7 @@ describe('Parses uri for image extension', () => {
   });
 });
 
-describe('Memoizes uri for prefix, image name, and extension', () => {
+describe('URIParser Memoizes uri', () => {
   it('returns memoized values', () => {
     let urip = URIParser('https://this/is/the/way/to/800/grandma.png')
     let ext = urip.imageExtension();
