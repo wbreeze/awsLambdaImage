@@ -1,6 +1,7 @@
 const ImageHandler = require("../resize.js").ImageHandler;
+const processEvent = require("../resize.js").processEvent;
 
-const mockEvent = {
+let mockEvent = {
   "Records": [
     {
       "cf": {
@@ -52,10 +53,10 @@ const mockEvent = {
   ]
 };
 
-const mockRequest = mockEvent.Records[0].cf.request;
-const mockResponse = mockEvent.Records[0].cf.response;
-const mockBuffer = "this is not an image but it will serve";
-const successResponse = {
+let mockRequest = mockEvent.Records[0].cf.request;
+let mockResponse = mockEvent.Records[0].cf.response;
+let mockBuffer = "this is not an image but it will serve";
+let successResponse = {
   "clientIp": "2001:0db8:85a3:0:0:8a2e:0370:7334",
   "method": "GET",
   "status": 200,
@@ -132,3 +133,10 @@ describe('ImageHandler processing', () => {
   });
 });
 
+describe('Event handling', () => {
+  it('passes response unaltered given 200 status', () => {
+    mockEvent.Records[0].cf.response.status = 200;
+    mockResponse.status = 200;
+    expect(processEvent(mockEvent)).resolves.toEqual(mockResponse);
+  });
+});
