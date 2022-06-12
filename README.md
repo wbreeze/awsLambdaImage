@@ -116,6 +116,7 @@ The uploads go very quickly if done directly from the EC2 instance.
 
 [depl]: https://docs.aws.amazon.com/lambda/latest/dg/nodejs-package.html
 [native]: https://aws.amazon.com/blogs/compute/nodejs-packages-in-lambda/
+[ec2]: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/concepts.html
 [nodec2]: https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/setting-up-node-on-ec2-instance.html
 [dist]: https://github.com/wbreeze/awsLambdaImage/blob/master/script/build_dist.sh
 [upload]: https://github.com/wbreeze/awsLambdaImage/blob/master/script/upload_dist.sh
