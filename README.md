@@ -17,9 +17,6 @@ dependency management, and for the running of scripts.
   `npm install`.
 - To run a script type, for example, `npm run test`.
 
-[cdnBlog]: https://aws.amazon.com/es/blogs/networking-and-content-delivery/resizing-images-with-amazon-cloudfront-lambdaedge-aws-cdn-blog/
-  "Resizing Images with Amazon CloudFront & Lambda@Edge"
-
 ## Building and Deploying
 
 The project requires compilation of some native code for the image
@@ -44,7 +41,7 @@ follow the [Tutorial: Setting Up Node.js on an Amazon EC2 Instance][nodec2].
 
 ### On the EC2 Instance, Amazon Linux
 
-The following commands are in the file, `ec2_image_setup.sh`
+The following commands, roughly, are in the file, [`ec2_image_setup.sh`][setup]
 
     [~]$ sudo yum update
     [~]$ sudo yum install git
@@ -55,30 +52,44 @@ The following commands are in the file, `ec2_image_setup.sh`
     [~]$ node -e "console.log('Running Node.js ' + process.version)"
     Running Node.js v16.15.0
 
-The following commands are in the file, `project_setup.sh`
+The following commands, roughly, are in the file, [`project_setup.sh`][project]
 
     [~]$ git clone https://github.com/wbreeze/awsLambdaImage.git
     [~]$ cd awsLambdaImage/
     [awsLambdaImage]$ npm install
     [awsLambdaImage]$ npm run test
 
-The following commands are in the file, `build_dist.sh`
+### Building a distribution
 
-    [awsLambdaImage]$ rm -rf node_modules/
+The following commands, roughly, are in the file, [`build_dist.sh`][dist]
+
     [awsLambdaImage]$ npm install --only=prod
     [awsLambdaImage]$ cp resize.js index.js
-    [awsLambdaImage]$ zip -r resize.zip index.js node_modules
+    [awsLambdaImage]$ zip -r dist/resize.zip index.js node_modules
     [awsLambdaImage]$ cp request.js index.js
-    [awsLambdaImage]$ zip -r request.zip index.js node_modules
+    [awsLambdaImage]$ zip -r dist/request.zip index.js node_modules
     [awsLambdaImage]$ rm index.js
     [awsLambdaImage]$ npm install
 
+The script in actuality invokes `sed` to replace environment variable
+references in `resize.js` with their values. This is because, while
+Lambda supports setting environment variables, Lambda@Edge does not.
+The environment variables capture the source and destination buckets
+and the region they are in.
+
+    AWS_S3_RESIZE_SRC_NAME="source bucket name - source images"
+    AWS_S3_RESIZE_DST_NAME="destination bucket name - scaled images"
+    AWS_S3_RESIZE_REGION="region containing the buckets"
+
+Naturally, we don't want to hard code these and check them into the repository.
+
 ### Uploading the distribution packages
 
-To keep myself sane, I simply copy the distribution zip files to my local
-machine using `scp`. My machine has configured the AWS CLI with my AWS account.
-Alternatively, I could use the `aws configure` command on the EC2 instance
-and enter my credentials there.
+I can copy the distribution zip files to my local machine using `scp`. My
+machine has configured the AWS CLI with my AWS account.  Alternatively, I
+use the `aws configure` command on the EC2 instance and enter a new set of
+AWS IAM account access keys there, generated from the AWS IAM console.
+The remote copy commands are something like these:
 
     scp -i "~/.ssh/AWSEC2.pem" \
       ec2-user@ec2-id.eu-west-1.compute.amazonaws.com:~/awsLambdaImage/resize.zip .
@@ -87,20 +98,29 @@ and enter my credentials there.
 
 Either way, the upload goes as follows:
 
-The following commands are in the file, `upload_dist.sh`
+The following commands, roughly, are in the file, [`upload_dist.sh`][upload]:
 
     $ aws lambda update-function-code \
     --function-name "rewrite_request_url" \
-    --zip-file fileb://request.zip \
+    --zip-file fileb://dist/request.zip \
     --publish \
     --region us-east-1
 
     $ aws lambda update-function-code \
     --function-name "scale_image" \
-    --zip-file fileb://resize.zip \
+    --zip-file fileb://dist/resize.zip \
     --publish \
     --region us-east-1
+
+The uploads go very quickly if done directly from the EC2 instance.
 
 [depl]: https://docs.aws.amazon.com/lambda/latest/dg/nodejs-package.html
 [native]: https://aws.amazon.com/blogs/compute/nodejs-packages-in-lambda/
 [nodec2]: https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/setting-up-node-on-ec2-instance.html
+[dist]: https://github.com/wbreeze/awsLambdaImage/blob/master/script/build_dist.sh
+[upload]: https://github.com/wbreeze/awsLambdaImage/blob/master/script/upload_dist.sh
+[setup]: https://github.com/wbreeze/awsLambdaImage/blob/master/script/ec2_image_setup.sh
+[project]: https://github.com/wbreeze/awsLambdaImage/blob/master/script/project_setup.sh
+[cdnBlog]: https://aws.amazon.com/es/blogs/networking-and-content-delivery/resizing-images-with-amazon-cloudfront-lambdaedge-aws-cdn-blog/
+  "Resizing Images with Amazon CloudFront & Lambda@Edge"
+
