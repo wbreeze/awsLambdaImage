@@ -76,7 +76,7 @@ exports.ImageHandler = (request, response) => {
 
     // read the required path.
     // e.g. /images/100x100/webp/image.jpg
-    const uriParser = exports.URIParser(response.uri);
+    const uriParser = exports.URIParser(request.uri);
     const parts = uriParser.getParts();
     console.log("Image locator parts " + JSON.stringify(parts));
 
@@ -138,6 +138,7 @@ exports.ImageHandler = (request, response) => {
   // returns a promise resolvehd with a response object
   scaler.generateImageResponse = (parts, buffer) => {
     response.status = 200;
+    response.statusDescription = "Success";
     response.body = buffer.toString('base64');
     response.bodyEncoding = 'base64';
     response.headers['content-type'] = [
@@ -168,5 +169,9 @@ exports.processEvent = (event) => {
 
 exports.handler = (event, context, callback) => {
   console.log("Event is " + JSON.stringify(event));
-  exports.processEvent(event).finally(response => callback(null, response));
+  exports.processEvent(event).finally(response => {
+    console.log("Response is " + JSON.stringify(response));
+    callback(null, response);
+  });
+  console.log("Exiting handler");
 };
