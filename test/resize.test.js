@@ -2,88 +2,109 @@ const ImageHandler = require("../resize.js").ImageHandler;
 const processEvent = require("../resize.js").processEvent;
 
 let mockEvent = {
-  "Records": [
-    {
-      "cf": {
-        "config": {
-          "distributionId": "EDFDVBD6EXAMPLE"
-        },
-        "request": {
-          "clientIp": "2001:0db8:85a3:0:0:8a2e:0370:7334",
-          "method": "GET",
-          "uri": "/images/image.jpg",
-          "querystring": "d=200x200",
-          "headers": {
-            "host": [
-              {
-                "key": "Host",
-                "value": "d111111abcdef8.cloudfront.net"
-              }
-            ],
-            "user-agent": [
-              {
-                "key": "User-Agent",
-                "value": "curl/7.51.0"
-              }
-            ]
-          }
-        },
-        "response": {
-          "clientIp": "2001:0db8:85a3:0:0:8a2e:0370:7334",
-          "method": "GET",
-          "status": 404,
-          "uri": "/images/200x200/jpg/image.jpg",
-          "headers": {
-            "host": [
-              {
-                "key": "Host",
-                "value": "d111111abcdef8.cloudfront.net"
-              }
-            ],
-            "user-agent": [
-              {
-                "key": "User-Agent",
-                "value": "curl/7.51.0"
-              }
-            ]
-          }
+    "Records": [
+        {
+            "cf": {
+                "config": {
+                    "distributionDomainName": "domain.cloudfront.net",
+                    "distributionId": "EDSEXAMPLEDID",
+                    "eventType": "origin-response",
+                    "requestId": "pN1SoewTOXVxYcNPthsxo1Gi9yf-uqzSCrU-e2yjj8bfBr1KyKGTAA=="
+                },
+                "request": {
+                    "clientIp": "127.0.0.0",
+                    "headers": {
+                        "x-forwarded-for": [
+                            {
+                                "key": "X-Forwarded-For",
+                                "value": "127.0.0.0"
+                            }
+                        ],
+                        "user-agent": [
+                            {
+                                "key": "User-Agent",
+                                "value": "Amazon CloudFront"
+                            }
+                        ],
+                        "via": [
+                            {
+                                "key": "Via",
+                                "value": "1.1 arn.cloudfront.net (CloudFront)"
+                            }
+                        ],
+                        "host": [
+                            {
+                                "key": "Host",
+                                "value": "arn.s3.eu-west-1.amazonaws.com"
+                            }
+                        ]
+                    },
+                    "method": "GET",
+                    "origin": {
+                        "s3": {
+                            "authMethod": "origin-access-identity",
+                            "customHeaders": {},
+                            "domainName": "arn.s3.eu-west-1.amazonaws.com",
+                            "path": "",
+                            "region": "eu-west-1"
+                        }
+                    },
+                    "querystring": "",
+                    "uri": "/600x600/png/IMG_8932.png"
+                },
+                "response": {
+                    "headers": {
+                        "x-amz-request-id": [
+                            {
+                                "key": "x-amz-request-id",
+                                "value": "AJCP06B0MNSV9JH2"
+                            }
+                        ],
+                        "x-amz-id-2": [
+                            {
+                                "key": "x-amz-id-2",
+                                "value": "acVAebmZ7YB0YHwdDfsUtb+R0dFe91cEkbhTg6cEvVRO2SoBe3sY+WG8Z2zIDQCfpDSqQAQ1zAE="
+                            }
+                        ],
+                        "date": [
+                            {
+                                "key": "Date",
+                                "value": "Mon, 13 Jun 2022 14:46:01 GMT"
+                            }
+                        ],
+                        "server": [
+                            {
+                                "key": "Server",
+                                "value": "AmazonS3"
+                            }
+                        ],
+                        "content-type": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/xml"
+                            }
+                        ],
+                        "transfer-encoding": [
+                            {
+                                "key": "Transfer-Encoding",
+                                "value": "chunked"
+                            }
+                        ]
+                    },
+                    "status": "404",
+                    "statusDescription": "Not Found"
+                }
+            }
         }
-      }
-    }
-  ]
+    ]
 };
 
 let mockRequest = mockEvent.Records[0].cf.request;
 let mockResponse = mockEvent.Records[0].cf.response;
 let mockBuffer = "this is not an image but it will serve";
 let successResponse = {
-  "clientIp": "2001:0db8:85a3:0:0:8a2e:0370:7334",
-  "method": "GET",
-  "status": 200,
-  "body": mockBuffer.toString('base64'),
-  "bodyEncoding": "base64",
-  "uri": "/images/200x200/jpg/image.jpg",
-  "headers": {
-    "content-type": [
-      {
-        key: "Content-Type",
-        value: "image/jpeg"
-      }
-    ],
-    "host": [
-      {
-        "key": "Host",
-        "value": "d111111abcdef8.cloudfront.net"
-      }
-    ],
-    "user-agent": [
-      {
-        "key": "User-Agent",
-        "value": "curl/7.51.0"
-      }
-    ]
-  }
-}
+  "headers":{"x-amz-request-id":[{"key":"x-amz-request-id","value":"AJCP06B0MNSV9JH2"}],"x-amz-id-2":[{"key":"x-amz-id-2","value":"acVAebmZ7YB0YHwdDfsUtb+R0dFe91cEkbhTg6cEvVRO2SoBe3sY+WG8Z2zIDQCfpDSqQAQ1zAE="}],"date":[{"key":"Date","value":"Mon, 13 Jun 2022 14:46:01 GMT"}],"server":[{"key":"Server","value":"AmazonS3"}],"content-type":[{"key":"Content-Type","value":"image/jpeg"}],"transfer-encoding":[{"key":"Transfer-Encoding","value":"chunked"}]},"status":200,"statusDescription":"Success","body":"this is not an image but it will serve","bodyEncoding":"base64"
+};
 
 function mockedImageHandler(
   request, response, failRetrieve, failScale, failWrite
@@ -133,10 +154,11 @@ describe('ImageHandler processing', () => {
   });
 });
 
-describe('Event handling', () => {
+describe('Origin response event handling', () => {
   it('passes response unaltered given 200 status', () => {
     mockEvent.Records[0].cf.response.status = 200;
     mockResponse.status = 200;
+    mockResponse.statusDescription = "Success";
     expect(processEvent(mockEvent)).resolves.toEqual(mockResponse);
   });
 });
