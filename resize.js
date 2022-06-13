@@ -157,8 +157,10 @@ exports.ImageHandler = (request, response) => {
 exports.processEvent = (event) => {
   let responsePromise;
   let response = event.Records[0].cf.response;
+  console.log("Response is " + JSON.stringify(response));
   if (response.status == 404) {
     let request = event.Records[0].cf.request;
+    console.log("Request is " + JSON.stringify(response));
     let imageHandler = exports.ImageHandler(request, response);
     responsePromise = imageHandler.processResponse();
   } else {
@@ -169,8 +171,8 @@ exports.processEvent = (event) => {
 
 exports.handler = (event, context, callback) => {
   console.log("Event is " + JSON.stringify(event));
-  exports.processEvent(event).finally(response => {
-    console.log("Response is " + JSON.stringify(response));
+  exports.processEvent(event).then(response => {
+    console.log("Resolved response is " + JSON.stringify(response));
     callback(null, response);
   });
   console.log("Exiting handler");
