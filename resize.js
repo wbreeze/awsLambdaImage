@@ -156,8 +156,12 @@ exports.ImageHandler = (request, response) => {
 // returns a promise of a response
 exports.processEvent = (event) => {
   let responsePromise;
+  console.log("Have event " + JSON.stringify(event));
+  console.log("Have Records " + JSON.stringify(event.Records));
+  console.log("Have Records[0] " + JSON.stringify(event.Records[0]));
+  console.log("Have Records[0].cf " + JSON.stringify(event.Records[0].cf));
   let response = event.Records[0].cf.response;
-  console.log("Response is " + JSON.stringify(response));
+  console.log("Have Response " + JSON.stringify(response));
   if (response.status == 404) {
     let request = event.Records[0].cf.request;
     console.log("Request is " + JSON.stringify(response));
@@ -175,5 +179,4 @@ exports.handler = (event, context, callback) => {
     console.log("Resolved response is " + JSON.stringify(response));
     callback(null, response);
   });
-  console.log("Exiting handler");
 };
