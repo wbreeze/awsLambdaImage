@@ -1,9 +1,7 @@
 'use strict';
 
-const {
-  S3Client, GetObjectCommand, PutObjectCommand
-} = require("@aws-sdk/client-s3");
-const S3 = new S3Client();
+const AWS = require('aws-sdk');
+const S3 = new AWS.S3({ apiVersion: '2006-03-01' });
 const Sharp = require('sharp');
 
 const SRC_BUCKET = process.env.AWS_S3_RESIZE_SRC_NAME;
@@ -91,11 +89,12 @@ exports.ImageHandler = (request, response) => {
 
   // returns a promise of a GetObjectCommandOutput object
   scaler.retrieveImage = (parts) => {
-    const command = new GetObjectCommand({
+    const params = {
       "Bucket": SRC_BUCKET,
       "Key": parts.sourceKey
-    });
-    return S3.send(command);
+    };
+    let request = S3.getObject(params)
+    return request.promise();
   };
 
   // returns a promise of [PutObjectCommandOutput, response]
@@ -120,18 +119,20 @@ exports.ImageHandler = (request, response) => {
   // write resized image to S3 destination bucket
   // returns a promise of PutObjectCommandOutput
   scaler.writeImageCache = (parts, buffer) => {
-    const command = new PutObjectCommand({
+    const params = {
       Body: buffer,
       Bucket: DST_BUCKET,
       ContentType: 'image/' + parts.requiredFormat,
       CacheControl: 'max-age=31536000',
       Key: parts.scaledKey
+    };
+    request = S3.putObject(params)
+    .on('error', (err, response) => {
+      console.log("Exception writing \"" + parts.scaledKey +
+        "\" to bucket is: " + JSON.stringify(err) +
+        "\n\twith response error :" + JSON.stringify(response.error));
     });
-    return S3.send(command)
-    .catch((err) => {
-      console.log("Exception writing %s to bucket is: %j",
-        parts.scaledKey, err);
-    });
+    return request.promise();
   };
 
   // generate a binary response with resized image
