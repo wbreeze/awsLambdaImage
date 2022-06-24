@@ -1,11 +1,11 @@
 'use strict';
 
-const WxHParser = () => {
-  let parser = {}
+var WxHParser = () => {
+  var parser = {}
 
   parser.parseIntegerStrictly = (strel) => {
-      let dim = NaN;
-      const digits = strel.split(/[^\d]/)
+      var dim = NaN;
+      var digits = strel.split(/[^\d]/)
       if (digits.length === 1) {
         dim = parseInt(strel);
       }
@@ -20,10 +20,10 @@ const WxHParser = () => {
   //   numeric Integer values
   // return null if the specification is not valid
   parser.parseWxH = (dimSpec) => {
-    let dimension = null
-    const dimensionMatch = dimSpec.split("x");
+    var dimension = null
+    var dimensionMatch = dimSpec.split("x");
     if (dimensionMatch.length == 1) {
-      const dim = parser.parseIntegerStrictly(dimensionMatch[0])
+      var dim = parser.parseIntegerStrictly(dimensionMatch[0])
       dimension = { w: dim, h: dim }
     } else if (dimensionMatch.length === 2) {
       dimension = {
@@ -47,13 +47,13 @@ const WxHParser = () => {
 //   "d=300" returns { w:300, h:300 }
 // return null if d not present or formatted incorrectly, otherwise return
 //   { w: <width>, h: <height> } where <width> and <height> are integers
-exports.QueryStringParser = {
+var QueryStringParser = {
   dimension: (query) => {
-    const querystring = require('querystring');
-    const params = querystring.parse(query);
-    let dimension = null
-    if (params.d) {
-      dimension = WxHParser().parseWxH(params.d);
+    //var querystring = require('querystring');
+    //var params = querystring.parse(query);
+    var dimension = null
+    if (query.d) {
+      dimension = WxHParser().parseWxH(query.d.value);
     }
     return dimension
   }
@@ -70,13 +70,13 @@ exports.QueryStringParser = {
 // If the second to last path element d does not have a valid dimension
 //   specificaton, leave dimensions unspecified and include the last path
 //   element in the memoized prefix.
-exports.URIParser = (uri) => {
-  let parser = {};
+var URIParser = (uri) => {
+  var parser = {};
 
   parser.parseElements = () => {
-    let elements = parser.elements;
+    var elements = parser.elements;
     if (elements === undefined) {
-      const match = uri.match(/(.*)\/([^\/]+)\.([^\/]+)/);
+      var match = uri.match(/(.*)\/([^\/]+)\.([^\/]+)/);
       if (match) {
         elements = {
           prefix: match[1],
@@ -90,25 +90,25 @@ exports.URIParser = (uri) => {
   };
 
   parser.prefix = () => {
-    const elems = parser.parseElements();
+    var elems = parser.parseElements();
     return (elems && elems.prefix) ? elems.prefix : null;
   };
 
   parser.imageName = () => {
-    const elems = parser.parseElements();
+    var elems = parser.parseElements();
     return (elems && elems.name) ? elems.name : null;
   }
 
   parser.imageExtension = () => {
-    const elems = parser.parseElements();
+    var elems = parser.parseElements();
     return (elems && elems.extension) ? elems.extension : null;
   }
 
   return parser;
 };
 
-exports.ImageRequestBuilder = (uri, query, accept) => {
-  let builder = {};
+var ImageRequestBuilder = (uri, query, accept) => {
+  var builder = {};
 
   // defines the allowed dimension requests
   builder.allowedDimensions = [
@@ -123,24 +123,25 @@ exports.ImageRequestBuilder = (uri, query, accept) => {
 
   builder.uriParser = () => {
     if (builder.memoizedParser === undefined) {
-      builder.memoizedParser = exports.URIParser(uri)
+      builder.memoizedParser = URIParser(uri)
     }
     return builder.memoizedParser;
   }
 
   // determine requested image dimensions from the request
   builder.requestDimension = () => {
-    const qsp = exports.QueryStringParser;
+    var qsp = QueryStringParser;
     return qsp.dimension(query);
   };
 
   // find the smallest allowed dimension greater than that requested
   // not finding one, return the greatest allowed size
   builder.allowedDimension = (dimRequested) => {
-    let allowed =
+    var allowed =
       builder.allowedDimensions[builder.allowedDimensions.length - 1];
     if (dimRequested && dimRequested.h && dimRequested.w) {
-      for (let dimension of builder.allowedDimensions) {
+      for (var i = 0; i < builder.allowedDimensions.length; ++i) {
+        var dimension = builder.allowedDimensions[i];
         if (dimRequested.h <= dimension.h &&
             dimRequested.w <= dimension.w
         ) {
@@ -154,21 +155,19 @@ exports.ImageRequestBuilder = (uri, query, accept) => {
 
   // build edge request url of format /images/200x200/webp/image.jpg
   builder.edgeRequest = () => {
-    let edgeURI = uri;
-    const dims = builder.requestDimension();
-    console.log("dims is " + JSON.stringify(dims));
+    var edgeURI = uri;
+    var dims = builder.requestDimension();
 
     if (dims) {
-      const parser = builder.uriParser(uri);
-      const normalized = builder.allowedDimension(dims);
+      var parser = builder.uriParser(uri);
+      var normalized = builder.allowedDimension(dims);
 
       // build the new uri to be forwarded upstream
-      let parts = [];
+      var parts = [];
       parts.push(parser.prefix());
       parts.push(normalized.w + "x" + normalized.h);
 
       // check support for webp
-      console.log("Accept is " + accept);
       if (accept.includes(builder.webpExtension)) {
           parts.push(builder.webpExtension);
       }
@@ -180,35 +179,35 @@ exports.ImageRequestBuilder = (uri, query, accept) => {
       edgeURI = parts.join("/");
     }
 
-    console.log("edge URI is " + edgeURI);
     return edgeURI;
   }
 
   return builder;
 };
 
-exports.parseEvent = (event) => {
-  let request = event.Records[0].cf.request;
+var parseEvent = (event) => {
+  var request = event.request;
   console.log("request is " + JSON.stringify(request));
   return {
     "request": request,
     "uri": request.uri ?? "",
     "query": request.querystring ?? "",
-    "accept": request.headers.accept[0].value ?? ""
+    "accept": request.headers.accept.value ?? ""
   }
-}
+};
 
-exports.handler = (event, context, callback) => {
-    console.log("event is " + JSON.stringify(event));
-    const params = exports.parseEvent(event);
-    const irb = exports.ImageRequestBuilder(
+var handler = (event, context, callback) => {
+    var params = parseEvent(event);
+    var irb = ImageRequestBuilder(
       params.uri, params.query, params.accept);
-    const fwdURI = irb.edgeRequest()
-    let request = params.request
+    var fwdURI = irb.edgeRequest()
+    var request = params.request
 
     if (fwdURI) {
       request.uri = fwdURI;
-      request.querystring = "";
+      request.querystring = {};
     }
-    callback(null, request);
+    console.log("Request going out is " + JSON.stringify(request));
+    if (callback) { callback(null, request) };
+    return request;
 };
