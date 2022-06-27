@@ -163,7 +163,7 @@ exports.processEvent = (event) => {
   console.log("Have Records[0].cf " + JSON.stringify(event.Records[0].cf));
   let response = event.Records[0].cf.response;
   console.log("Have Response " + JSON.stringify(response));
-  if (response.status == 404) {
+  if (400 <= response.status && response.status < 500) {
     let request = event.Records[0].cf.request;
     console.log("Request is " + JSON.stringify(response));
     let imageHandler = exports.ImageHandler(request, response);
