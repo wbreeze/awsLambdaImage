@@ -99,6 +99,7 @@ exports.ImageHandler = (request, response) => {
 
   // returns a promise of [PutObjectCommandOutput, response]
   scaler.scaleImage = (parts, data) => {
+    console.log("Scaling " + JSON.stringify(parts));
     return Sharp(data.Body)
     .resize(parts.width, parts.height)
     .toFormat(parts.requiredFormat)
@@ -119,6 +120,7 @@ exports.ImageHandler = (request, response) => {
   // write resized image to S3 destination bucket
   // returns a promise of PutObjectCommandOutput
   scaler.writeImageCache = (parts, buffer) => {
+    console.log("Writing " + JSON.stringify(parts));
     const params = {
       Body: buffer,
       Bucket: DST_BUCKET,
@@ -138,6 +140,7 @@ exports.ImageHandler = (request, response) => {
   // generate a binary response with resized image
   // returns a promise resolvehd with a response object
   scaler.generateImageResponse = (parts, buffer) => {
+    console.log("Modifying response " + JSON.stringify(parts));
     response.status = 200;
     response.statusDescription = "Success";
     response.body = buffer.toString('base64');
