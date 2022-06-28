@@ -113,7 +113,11 @@ exports.ImageHandler = (request, response) => {
     .resize(parts.width, parts.height)
     .toFormat(parts.requiredFormat)
     .toBuffer()
-    .then(buffer => doResponseInParallel(parts, buffer));
+    .then(buffer => doResponseInParallel(parts, buffer))
+    .catch(err => {
+      console.log("Exception while scaling is %j", err);
+      return [null, response];
+    });
   };
 
   // returns a promise of [PutObjectCommandOutput, response]
