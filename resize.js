@@ -17,43 +17,52 @@ exports.URIParser = (uri) => {
     return format == 'jpg' ? 'jpeg' : format
   }
 
-  // parse the prefix, width, height and image name
-  // Ex: uri=images/200x200/webp/image.jpg
-  parser.getParts = () => {
-    if (parser.memoizedParts === undefined) {
-      let parts = {}
-
-      // parse the prefix, width, height and image name
-      // Ex: key=images/200x200/webp/image.jpg
-      try {
-        const match = uri.match(
-          /https?:\/\/(.*)\/(\d+)x(\d+)\/([^\/]+)\/([^\/]+)/
-        );
-        parts.prefix = match[1];
-        parts.width = parseInt(match[2], 10);
-        parts.height = parseInt(match[3], 10);
-        parts.requiredFormat = parser.imageFormat(match[4]);
-        parts.imageName = match[5];
-        parts.sourceKey = parts.prefix + "/" + parts.imageName;
-      }
-      catch (err) {
-        // no prefix for image..
-        const match = uri.match(/\/?(.*)\/(\d+)x(\d+)\/(.*)\/(.*)/);
-        parts.prefix = match[1];
-        parts.width = parseInt(match[2], 10);
-        parts.height = parseInt(match[3], 10);
-        parts.requiredFormat = parser.imageFormat(match[4]);
-        parts.imageName = match[5];
-        parts.sourceKey = parts.prefix + "/" + parts.imageName;
-      }
+  parser.partsFromMatch = (match) => {
+    let parts = {};
+    parts.prefix = match[1].trim();
+    parts.width = parseInt(match[2], 10);
+    parts.height = parseInt(match[3], 10);
+    parts.requiredFormat = parser.imageFormat(match[4]);
+    parts.imageName = match[5];
+    if (parts.prefix.length == 0) {
+      parts.sourceKey = parts.imageName;
+      parts.scaledKey = [
+        (parts.width + 'x' +  parts.height),
+        parts.requiredFormat,
+        parts.imageName
+      ].join('/');
+    } else {
+      parts.sourceKey = parts.prefix + "/" + parts.imageName;
       parts.scaledKey = [
         parts.prefix,
         (parts.width + 'x' +  parts.height),
         parts.requiredFormat,
         parts.imageName
       ].join('/');
+    }
+    return parts;
+  }
 
-      parser.memoizedParts = parts;
+  // parse the prefix, width, height and image name
+  // Ex: uri=images/200x200/webp/image.jpg
+  parser.getParts = () => {
+    if (parser.memoizedParts === undefined) {
+      // parse the prefix, width, height and image name
+      // Ex: key=images/200x200/webp/image.jpg
+      let match = uri.match(
+        /https?:\/\/(.*)\/(\d+)x(\d+)\/([^\/]+)\/([^\/]+)/
+      );
+      if (match == null) {
+        // no prefix for image..
+        match = uri.match(/\/?(.*)\/(\d+)x(\d+)\/(.*)\/(.*)/);
+      }
+      try {
+        parser.memoizedParts = parser.partsFromMatch(match);
+      } catch(err) {
+        console.log("URIParse has poor match for uri " + JSON.stringify(uri) +
+          " error is " + err);
+        parser.memoizedParts = {};
+      }
     }
     return parser.memoizedParts;
   }
