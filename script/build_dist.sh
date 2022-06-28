@@ -11,8 +11,6 @@ if [[ -n ${AWS_S3_RESIZE_SRC_NAME} && -n ${AWS_S3_RESIZE_DST_NAME} && -n ${AWS_S
     "s/process.env.AWS_S3_RESIZE_REGION/\"${AWS_S3_RESIZE_REGION}\"/g" \
     >index.js
   zip -r dist/resize.zip index.js node_modules
-  cp request.js index.js
-  zip -r dist/request.zip index.js node_modules
   rm index.js
   npm install
 else
