@@ -27,7 +27,7 @@ exports.URIParser = (uri) => {
       // Ex: key=images/200x200/webp/image.jpg
       try {
         const match = uri.match(
-          /https?:\/(.*)\/(\d+)x(\d+)\/([^\/]+)\/([^\/]+)/
+          /https?:\/\/(.*)\/(\d+)x(\d+)\/([^\/]+)\/([^\/]+)/
         );
         parts.prefix = match[1];
         parts.width = parseInt(match[2], 10);
@@ -38,7 +38,7 @@ exports.URIParser = (uri) => {
       }
       catch (err) {
         // no prefix for image..
-        const match = uri.match(/(.*)\/(\d+)x(\d+)\/(.*)\/(.*)/);
+        const match = uri.match(/\/?(.*)\/(\d+)x(\d+)\/(.*)\/(.*)/);
         parts.prefix = match[1];
         parts.width = parseInt(match[2], 10);
         parts.height = parseInt(match[3], 10);
