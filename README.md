@@ -114,6 +114,16 @@ The following commands, roughly, are in the file, [`upload_dist.sh`][upload]:
 
 The uploads go very quickly if done directly from the EC2 instance.
 
+## CloudFront functions ViwerRequest
+
+Somewhere in the middle of this, the `rewrite_request_url` function could
+no longer be installed as a Lambda@Edge function. The console complained that
+the code size was too large. To get around this, it has been rewritten as
+a CloudFront function. As a CloudFront function it uses a different style
+of JavaScript. I installed and tested it using the CloudFront console functions
+form. The `scale_image` function continues to work from Lambda@Edge (crossing
+fingers).
+
 [depl]: https://docs.aws.amazon.com/lambda/latest/dg/nodejs-package.html
 [native]: https://aws.amazon.com/blogs/compute/nodejs-packages-in-lambda/
 [ec2]: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/concepts.html
