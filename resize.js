@@ -122,13 +122,14 @@ exports.ImageHandler = (request, response) => {
 
   // returns a promise of [PutObjectCommandOutput, response]
   scaler.doResponseInParallel = (parts, buffer) => {
+    console.log("Response in parallel %j", parts);
     return Promise.allSettled([
         scaler.writeImageCache(parts, buffer),
         // even if there is exception in saving the object we send the
         // generated image back to viewer
         scaler.generateImageResponse(parts, buffer)
     ]);
-  }
+  };
 
   // write resized image to S3 destination bucket
   // returns a promise of PutObjectCommandOutput
