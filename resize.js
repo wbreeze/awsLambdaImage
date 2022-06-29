@@ -108,7 +108,7 @@ exports.ImageHandler = (request, response) => {
 
   // returns a promise of [PutObjectCommandOutput, response]
   scaler.scaleImage = (parts, data) => {
-    console.log("Scaling " + JSON.stringify(parts));
+    console.log("Scaling %j data is %j", parts, data);
     return Sharp(data.Body)
     .resize(parts.width, parts.height)
     .toFormat(parts.requiredFormat)
