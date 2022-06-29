@@ -107,9 +107,9 @@ exports.ImageHandler = (request, response) => {
   };
 
   // returns a promise of [PutObjectCommandOutput, response]
-  scaler.scaleImage = (parts, s3object) => {
-    console.log("Scaling %j s3object type is %s", parts, s3object.type);
-    return Sharp(s3object.data)
+  scaler.scaleImage = (parts, data) => {
+    console.log("Scaling %j", parts);
+    return Sharp(data)
     .resize(parts.width, parts.height)
     .toFormat(parts.requiredFormat)
     .toBuffer()
