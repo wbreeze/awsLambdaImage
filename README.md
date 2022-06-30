@@ -1,12 +1,23 @@
-Resize images on the fly from
-AWS S3 bucket source
-to Amazon Cloudfront CDN
-using Lambda@Edge.
+Resize images on the fly from AWS S3 bucket source
+to Amazon Cloudfront CDN using Lambda@Edge.
 
-These files are variations of those given by [Resizing Images with Amazon CloudFront & Lambda@Edge][cdnBlog] at the AWS CDN Blog.
+These files are variations of those given by
+[Resizing Images with Amazon CloudFront & Lambda@Edge][cdnBlog]
+at the AWS CDN Blog.
 
-The main change is the method of parsing file size out of the URL.
-I've also broken-up the sources given in the article and added tests.
+In the end, this only works "sort of." The `request.js` function works as a
+"CloudFront" function on the viewer request event. Copy it and paste it into
+the code editor for the function created under the Functions list of the
+AWS CloudFront console.
+
+The `resize.js` function gets as far as doing the scaling, but does not
+substitute the scaled image in the response, nor write the scaled image to
+the S3 bucket. Whatever the reason for this, it does not matter. The scaling
+takes several seconds in the Lambda@Edge environment in which it runs. This
+is an unacceptable delay.
+
+Scaling on the fly, because of the delay when the image is not cached,
+isn't such a great idea.
 
 ## Development
 
