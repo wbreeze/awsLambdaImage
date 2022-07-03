@@ -1,4 +1,4 @@
-const URIParser = require("../request.js").URIParser;
+import { URIParser } from "../request.js";
 
 describe('URIParser uri for prefix', () => {
   it('returns prefix with numeric element last in path', () => {

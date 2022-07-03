@@ -1,5 +1,4 @@
-const ImageHandler = require("../resize.js").ImageHandler;
-const processEvent = require("../resize.js").processEvent;
+import { ImageHandler, processEvent } from "../resize.js";
 
 let mockEvent = {
     "Records": [

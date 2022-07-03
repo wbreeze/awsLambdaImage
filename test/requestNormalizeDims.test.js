@@ -1,4 +1,4 @@
-const ImageRequestBuilder = require("../request.js").ImageRequestBuilder;
+import { ImageRequestBuilder } from "../request.js";
 
 describe('Normalized dimension request', () => {
   it('finds the smallest', () => {

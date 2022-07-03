@@ -1,14 +1,15 @@
 'use strict';
 
-const AWS = require('aws-sdk');
+import AWS from 'aws-sdk';
+import Sharp from 'sharp';
+
 const S3 = new AWS.S3({ apiVersion: '2006-03-01' });
-const Sharp = require('sharp');
 
 const SRC_BUCKET = process.env.AWS_S3_RESIZE_SRC_NAME;
 const DST_BUCKET = process.env.AWS_S3_RESIZE_DST_NAME;
 const BUCKETS_REGION = process.env.AWS_S3_RESIZE_REGION;
 
-exports.URIParser = (uri) => {
+let URIParser = (uri) => {
   let parser = {};
 
   // correction for jpg required for 'Sharp'
@@ -70,7 +71,7 @@ exports.URIParser = (uri) => {
   return parser;
 }
 
-exports.ImageHandler = (request, response) => {
+let ImageHandler = (request, response) => {
   let scaler = {};
 
   // returns a promise of response
@@ -83,7 +84,7 @@ exports.ImageHandler = (request, response) => {
 
     // read the required path.
     // e.g. /images/100x100/webp/image.jpg
-    const uriParser = exports.URIParser(request.uri);
+    const uriParser = URIParser(request.uri);
     const parts = uriParser.getParts();
     console.log("Image locator parts " + JSON.stringify(parts));
 
@@ -172,7 +173,7 @@ exports.ImageHandler = (request, response) => {
 };
 
 // returns a promise of a response
-exports.processEvent = (event) => {
+let processEvent = (event) => {
   let responsePromise;
   console.log("Have event " + JSON.stringify(event));
   console.log("Have Records " + JSON.stringify(event.Records));
@@ -183,7 +184,7 @@ exports.processEvent = (event) => {
   if (400 <= response.status && response.status < 500) {
     let request = event.Records[0].cf.request;
     console.log("Request is " + JSON.stringify(response));
-    let imageHandler = exports.ImageHandler(request, response);
+    let imageHandler = ImageHandler(request, response);
     responsePromise = imageHandler.processResponse();
   } else {
     responsePromise = Promise.resolve(response);
@@ -191,10 +192,12 @@ exports.processEvent = (event) => {
   return responsePromise;
 }
 
-exports.handler = (event, context, callback) => {
+let handler = (event, context, callback) => {
   console.log("Event is " + JSON.stringify(event));
-  exports.processEvent(event).then(response => {
+  processEvent(event).then(response => {
     console.log("Resolved response is " + JSON.stringify(response));
     callback(null, response);
   });
 };
+
+export { URIParser, ImageHandler, processEvent, handler };

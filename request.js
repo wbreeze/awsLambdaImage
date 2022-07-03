@@ -151,34 +151,41 @@ var ImageRequestBuilder = (uri, query, accept) => {
     return allowed;
   }
 
+  builder.buildRequestURI = (uri, dimsWxH, acceptWebp) => {
+    var parser = builder.uriParser(uri);
+
+    // build the new uri to be forwarded upstream
+    var parts = [];
+    parts.push(parser.prefix());
+    parts.push(dimsWxH.w + "x" + dimsWxH.h);
+
+    // check support for webp
+    if (acceptWebp) {
+        parts.push(builder.webpExtension);
+    }
+    else{
+        parts.push(parser.imageExtension());
+    }
+    parts.push(parser.imageName() + "." + parser.imageExtension());
+
+    return parts.join("/");
+  };
+
   // build edge request url of format /images/200x200/webp/image.jpg
   builder.edgeRequest = () => {
     var edgeURI = uri;
     var dims = builder.requestDimension();
 
     if (dims) {
-      var parser = builder.uriParser(uri);
-      var normalized = builder.allowedDimension(dims);
-
-      // build the new uri to be forwarded upstream
-      var parts = [];
-      parts.push(parser.prefix());
-      parts.push(normalized.w + "x" + normalized.h);
-
-      // check support for webp
-      if (accept.includes(builder.webpExtension)) {
-          parts.push(builder.webpExtension);
-      }
-      else{
-          parts.push(parser.imageExtension());
-      }
-      parts.push(parser.imageName() + "." + parser.imageExtension());
-
-      edgeURI = parts.join("/");
+      edgeURI = builder.buildRequestURI(
+        uri,
+        builder.allowedDimension(dims),
+        accept.includes(builder.webpExtension)
+      );
     }
 
     return edgeURI;
-  }
+  };
 
   return builder;
 };

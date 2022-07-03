@@ -1,4 +1,4 @@
-const URIParser = require("../resize.js").URIParser;
+import { URIParser } from '../resize.js';
 
 describe('URIParser components', () => {
   it('parses expected format', () => {

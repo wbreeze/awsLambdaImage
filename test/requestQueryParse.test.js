@@ -1,4 +1,5 @@
-const pwh = require("../request.js").WxHParser();
+import { WxHParser } from "../request.js"
+const pwh = WxHParser();
 
 describe('Parses query parameters for dimensions', () => {
   it('finds width and height', () => {
