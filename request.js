@@ -49,8 +49,6 @@ var WxHParser = () => {
 //   { w: <width>, h: <height> } where <width> and <height> are integers
 var QueryStringParser = {
   dimension: (query) => {
-    //var querystring = require('querystring');
-    //var params = querystring.parse(query);
     var dimension = null
     if (query.d) {
       dimension = WxHParser().parseWxH(query.d.value);
@@ -187,7 +185,6 @@ var ImageRequestBuilder = (uri, query, accept) => {
 
 var parseEvent = (event) => {
   var request = event.request;
-  console.log("request is " + JSON.stringify(request));
   return {
     "request": request,
     "uri": request.uri ?? "",
@@ -207,7 +204,11 @@ var handler = (event, context, callback) => {
       request.uri = fwdURI;
       request.querystring = {};
     }
-    console.log("Request going out is " + JSON.stringify(request));
     if (callback) { callback(null, request) };
     return request;
+};
+
+export {
+  WxHParser, QueryStringParser, URIParser, ImageRequestBuilder,
+  parseEvent, handler
 };
