@@ -52,6 +52,10 @@ follow the [Tutorial: Setting Up Node.js on an Amazon EC2 Instance][nodec2].
 
 ### On the EC2 Instance, Amazon Linux
 
+The project has scripts for setting-up the machine, cloning and
+initializing the awsLambdaImage project, building, and distributing the
+Lambda function. The are in the `script` directory.
+
 The following commands, roughly, are in the file, [`ec2_image_setup.sh`][setup]
 
     [~]$ sudo yum update
