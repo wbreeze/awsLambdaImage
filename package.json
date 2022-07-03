@@ -16,6 +16,6 @@
     "jest": "^27.5.1"
   },
   "scripts": {
-    "test": "jest"
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest"
   }
 }
