@@ -1,4 +1,6 @@
-import { WxHParser } from "../request.js"
+'use strict';
+
+import { WxHParser } from "../src/wxhParser.js"
 const pwh = WxHParser();
 
 describe('Parses query parameters for dimensions', () => {
