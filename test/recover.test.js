@@ -1,4 +1,4 @@
-import { ImageHandler, processEvent } from "../resize.js";
+import { ImageHandler, processEvent } from "../src/recover.js";
 
 let mockEvent = {
     "Records": [

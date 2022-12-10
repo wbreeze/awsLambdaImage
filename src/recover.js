@@ -2,74 +2,13 @@
 
 import AWS from 'aws-sdk';
 import Sharp from 'sharp';
+import { URIParser } from './uriParser';
 
 const S3 = new AWS.S3({ apiVersion: '2006-03-01' });
 
 const SRC_BUCKET = process.env.AWS_S3_RESIZE_SRC_NAME;
 const DST_BUCKET = process.env.AWS_S3_RESIZE_DST_NAME;
 const BUCKETS_REGION = process.env.AWS_S3_RESIZE_REGION;
-
-let URIParser = (uri) => {
-  let parser = {};
-
-  // correction for jpg required for 'Sharp'
-  parser.imageFormat = (spec) => {
-    const format = spec.toLowerCase();
-    return format == 'jpg' ? 'jpeg' : format
-  }
-
-  parser.partsFromMatch = (match) => {
-    let parts = {};
-    parts.prefix = match[1].trim();
-    parts.width = parseInt(match[2], 10);
-    parts.height = parseInt(match[3], 10);
-    parts.requiredFormat = parser.imageFormat(match[4]);
-    parts.imageName = match[5];
-    if (parts.prefix.length == 0) {
-      parts.sourceKey = parts.imageName;
-      parts.scaledKey = [
-        (parts.width + 'x' +  parts.height),
-        parts.requiredFormat,
-        parts.imageName
-      ].join('/');
-    } else {
-      parts.sourceKey = parts.prefix + "/" + parts.imageName;
-      parts.scaledKey = [
-        parts.prefix,
-        (parts.width + 'x' +  parts.height),
-        parts.requiredFormat,
-        parts.imageName
-      ].join('/');
-    }
-    return parts;
-  }
-
-  // parse the prefix, width, height and image name
-  // Ex: uri=images/200x200/webp/image.jpg
-  parser.getParts = () => {
-    if (parser.memoizedParts === undefined) {
-      // parse the prefix, width, height and image name
-      // Ex: key=images/200x200/webp/image.jpg
-      let match = uri.match(
-        /https?:\/\/(.*)\/(\d+)x(\d+)\/([^\/]+)\/([^\/]+)/
-      );
-      if (match == null) {
-        // no prefix for image..
-        match = uri.match(/\/?(.*)\/(\d+)x(\d+)\/(.*)\/(.*)/);
-      }
-      try {
-        parser.memoizedParts = parser.partsFromMatch(match);
-      } catch(err) {
-        console.log("URIParse has poor match for uri " + JSON.stringify(uri) +
-          " error is " + err);
-        parser.memoizedParts = {};
-      }
-    }
-    return parser.memoizedParts;
-  }
-
-  return parser;
-}
 
 let ImageHandler = (request, response) => {
   let scaler = {};
@@ -200,4 +139,4 @@ let handler = (event, context, callback) => {
   });
 };
 
-export { URIParser, ImageHandler, processEvent, handler };
+export { ImageHandler, processEvent, handler };
