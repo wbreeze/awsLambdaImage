@@ -1,3 +1,5 @@
+'use strict';
+
 import { ImageHandler, processEvent } from "../src/recover.js";
 
 let mockEvent = {
@@ -102,7 +104,48 @@ let mockRequest = mockEvent.Records[0].cf.request;
 let mockResponse = mockEvent.Records[0].cf.response;
 let mockBuffer = "this is not an image but it will serve";
 let successResponse = {
-  "headers":{"x-amz-request-id":[{"key":"x-amz-request-id","value":"AJCP06B0MNSV9JH2"}],"x-amz-id-2":[{"key":"x-amz-id-2","value":"acVAebmZ7YB0YHwdDfsUtb+R0dFe91cEkbhTg6cEvVRO2SoBe3sY+WG8Z2zIDQCfpDSqQAQ1zAE="}],"date":[{"key":"Date","value":"Mon, 13 Jun 2022 14:46:01 GMT"}],"server":[{"key":"Server","value":"AmazonS3"}],"content-type":[{"key":"Content-Type","value":"image/jpeg"}],"transfer-encoding":[{"key":"Transfer-Encoding","value":"chunked"}]},"status":200,"statusDescription":"Success","body":"this is not an image but it will serve","bodyEncoding":"base64"
+  "headers": {
+    "x-amz-request-id": [
+      {
+        "key": "x-amz-request-id",
+        "value": "AJCP06B0MNSV9JH2"
+      }
+    ],
+    "x-amz-id-2": [
+      {
+        "key": "x-amz-id-2",
+        "value": "acVAebmZ7YB0YHwdDfsUtb+R0dFe91cEkbhTg6cEvVRO2SoBe3sY+WG8Z2zIDQCfpDSqQAQ1zAE="
+      }
+    ],
+    "date": [
+      {
+        "key": "Date",
+        "value": "Mon, 13 Jun 2022 14:46:01 GMT"
+      }
+    ],
+    "server": [
+      {
+        "key": "Server",
+        "value": "AmazonS3"
+      }
+    ],
+    "content-type": [
+      {
+        "key": "Content-Type",
+        "value": "image/jpeg"
+      }
+    ],
+    "transfer-encoding": [
+      {
+        "key": "Transfer-Encoding",
+        "value": "chunked"
+      }
+    ]
+  },
+  "status": 200,
+  "statusDescription": "Success",
+  "body": "this is not an image but it will serve",
+  "bodyEncoding": "base64"
 };
 
 function mockedImageHandler(
@@ -127,7 +170,7 @@ function mockedImageHandler(
       Promise.resolve("successful write");
   }
   return handler;
-}
+};
 
 describe('ImageHandler processing', () => {
   it('generates an image response', () => {
