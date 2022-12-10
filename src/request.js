@@ -1,6 +1,7 @@
 'use strict';
 
 import { WxHParser } from "wxhParser.js";
+import { URIParser } from "uriParser.js";
 
 // parse the image dimensions from the query string.
 // Look for parameter d with value <width>x<height> where width and height
@@ -30,43 +31,6 @@ var QueryStringParser = {
 // If the second to last path element d does not have a valid dimension
 //   specificaton, leave dimensions unspecified and include the last path
 //   element in the memoized prefix.
-var URIParser = (uri) => {
-  var parser = {};
-
-  parser.parseElements = () => {
-    var elements = parser.elements;
-    if (elements === undefined) {
-      var match = uri.match(/(.*)\/([^\/]+)\.([^\/]+)/);
-      if (match) {
-        elements = {
-          prefix: match[1],
-          name: match[2],
-          extension: match[3]
-        }
-      }
-      parser.elements = elements;
-    }
-    return elements;
-  };
-
-  parser.prefix = () => {
-    var elems = parser.parseElements();
-    return (elems && elems.prefix) ? elems.prefix : null;
-  };
-
-  parser.imageName = () => {
-    var elems = parser.parseElements();
-    return (elems && elems.name) ? elems.name : null;
-  }
-
-  parser.imageExtension = () => {
-    var elems = parser.parseElements();
-    return (elems && elems.extension) ? elems.extension : null;
-  }
-
-  return parser;
-};
-
 var ImageRequestBuilder = (uri, query, accept) => {
   var builder = {};
 

@@ -1,4 +1,6 @@
-import { URIParser } from '../resize.js';
+'use strict';
+
+import { URIParser } from '../src/uriParser.js';
 
 describe('URIParser components', () => {
   it('parses expected format', () => {
