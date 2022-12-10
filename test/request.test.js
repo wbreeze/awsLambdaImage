@@ -1,4 +1,7 @@
-import { ImageRequestBuilder, parseEvent, handler } from '../src/request.js';
+'use strict';
+
+import { parseEvent, handler } from '../src/request.js';
+import { ImageRequestBuilder } from '../src/imageRequestBuilder.js';
 
 const EventBuilder = (uri, query, doAcceptWebp) => {
     const accept = doAcceptWebp ? "webp" : "jpeg";

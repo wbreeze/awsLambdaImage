@@ -1,4 +1,6 @@
-import { URIParser } from "../request.js";
+'use strict';
+
+import { URIParser } from "../src/uriParser.js";
 
 describe('URIParser uri for prefix', () => {
   it('returns prefix with numeric element last in path', () => {

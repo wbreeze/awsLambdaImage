@@ -1,4 +1,4 @@
-import { ImageRequestBuilder } from "../request.js";
+import { ImageRequestBuilder } from "../src/imageRequestBuilder.js";
 
 describe('Normalized dimension request', () => {
   it('finds the smallest', () => {
