@@ -1,7 +1,7 @@
 'use strict';
 
-import { WxHParser } from "wxhParser.js";
-import { URIParser } from "uriParser.js";
+import { WxHParser } from "./wxhParser.js";
+import { URIParser } from "./uriParser.js";
 
 // parse the image dimensions from the query string.
 // Look for parameter d with value <width>x<height> where width and height
