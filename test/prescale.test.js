@@ -1,4 +1,4 @@
-import { Prescale, handler } from "../prescale.js";
+import { Prescale, handler } from "../src/prescale.js";
 
 const sourceBucket = "name-of-image-bucket";
 const sourceKey = "path/to/image.png";
