@@ -11,118 +11,105 @@ const DST_BUCKET = process.env.AWS_S3_RESIZE_DST_NAME;
 const BUCKETS_REGION = process.env.AWS_S3_RESIZE_REGION;
 
 let ImageHandler = (request, response) => {
-  let scaler = {};
+  let recoveryHandler = {};
 
   // returns a promise of response
-  scaler.processResponse = () => {
-    console.log("Image source bucket is " + SRC_BUCKET);
-    console.log("Image destination bucket is " + DST_BUCKET);
-    console.log("Image bucket region is " + BUCKETS_REGION);
-    console.log("Image request is " + JSON.stringify(request));
-    console.log("Image response is " + JSON.stringify(response));
+  recoveryHandler.processResponse = () => {
+    //console.log("Image source bucket is " + SRC_BUCKET);
+    //console.log("Image destination bucket is " + DST_BUCKET);
+    //console.log("Image bucket region is " + BUCKETS_REGION);
+    //console.log("Image request is " + JSON.stringify(request, null, 4));
+    //console.log("Image response is " + JSON.stringify(response, null, 4));
 
     // read the required path.
     // e.g. /images/100x100/webp/image.jpg
     const uriParser = URIParser(request.uri);
     const parts = uriParser.getParts();
-    console.log("Image locator parts " + JSON.stringify(parts));
+    //console.log("Image locator parts " + JSON.stringify(parts));
 
-    return scaler.retrieveImage(parts)
-    .then(result => scaler.scaleImage(parts, result.Body))
-    .then(([_, imgResponse]) => imgResponse)
+    return recoveryHandler.checkImage(parts)
+    .then(result => recoveryHandler.doResponseInParallel(parts, result))
     .catch(err => {
-      console.log("Exception while reading source image :%j",err);
-      return response;
+      console.log("Exception while checking source image :%j",err);
+      return Promise.resolve(response);
     });
   };
 
-  // returns a promise of a GetObjectCommandOutput object
-  scaler.retrieveImage = (parts) => {
+  // returns a promise of a GetObjectAttributesCommandOutput object
+  recoveryHandler.checkImage = (parts) => {
+    console.log("Checking %j", parts.sourceKey);
     const params = {
       "Bucket": SRC_BUCKET,
       "Key": parts.sourceKey
     };
-    let request = S3.getObject(params)
+    let request = S3.getObjectAttributes(params)
     return request.promise();
   };
 
-  // returns a promise of [PutObjectCommandOutput, response]
-  scaler.scaleImage = (parts, data) => {
-    console.log("Scaling %j", parts);
-    return Sharp(data)
-    .resize(parts.width, parts.height)
-    .toFormat(parts.requiredFormat)
-    .toBuffer()
-    .then(buffer => doResponseInParallel(parts, buffer))
+  // returns a promise of response
+  recoveryHandler.doResponseInParallel = (parts, metadata) => {
+    console.log("Response in parallel %j", parts);
+    return Promise.allSettled([
+        recoveryHandler.touchImage(parts, metadata),
+        // even if there is exception in touching the object we send the
+        // redirect back to the caller
+        recoveryHandler.generateRedirectResponse(parts)
+    ])
+    .then(allResults => Promise.resolve(allResults[1]))
     .catch(err => {
-      console.log("Exception while scaling is %j", err);
-      return [null, response];
+      console.log("Exception generating response");
+      return Promise.resolve(response);
     });
   };
 
-  // returns a promise of [PutObjectCommandOutput, response]
-  scaler.doResponseInParallel = (parts, buffer) => {
-    console.log("Response in parallel %j", parts);
-    return Promise.allSettled([
-        scaler.writeImageCache(parts, buffer),
-        // even if there is exception in saving the object we send the
-        // generated image back to viewer
-        scaler.generateImageResponse(parts, buffer)
-    ]);
-  };
-
-  // write resized image to S3 destination bucket
-  // returns a promise of PutObjectCommandOutput
-  scaler.writeImageCache = (parts, buffer) => {
-    console.log("Writing " + JSON.stringify(parts));
+  // touch image in S3 source bucket to trigger scaling
+  // returns a promise of a CopyObjectCommandOutput object
+  recoveryHandler.touchImage = (parts, attributes) => {
+    console.log("Touching %j", parts.sourceKey);
+    attributes.LastModified = Date.now;
     const params = {
-      Body: buffer,
-      Bucket: DST_BUCKET,
-      ContentType: 'image/' + parts.requiredFormat,
-      CacheControl: 'max-age=31536000',
-      Key: parts.scaledKey
+      Bucket: SRC_BUCKET,
+      CopySource: parts.sourceKey,
+      Key: parts.sourceKey,
+      MetadataDirective: 'replace',
+      Metadata: attributes
     };
-    request = S3.putObject(params)
+    request = S3.copyObject(params)
     .on('error', (err, response) => {
-      console.log("Exception writing \"" + parts.scaledKey +
-        "\" to bucket is: " + JSON.stringify(err) +
+      console.log("Exception touching \"" + parts.sourceKey +
+        "\" is: " + JSON.stringify(err) +
         "\n\twith response error :" + JSON.stringify(response.error));
     });
     return request.promise();
   };
 
   // generate a binary response with resized image
-  // returns a promise resolvehd with a response object
-  scaler.generateImageResponse = (parts, buffer) => {
-    console.log("Modifying response " + JSON.stringify(parts));
-    response.status = 200;
-    response.statusDescription = "Success";
-    response.body = buffer.toString('base64');
-    response.bodyEncoding = 'base64';
-    response.headers['content-type'] = [
-      { key: 'Content-Type',
-        value: 'image/' + parts.requiredFormat
-      }
-    ];
-    console.log("Generated image response is " + JSON.stringify(response));
+  // returns a promise resolved with a response object
+  recoveryHandler.generateRedirectResponse = (parts) => {
+    console.log("Here generateRedirectResponse(%j)", parts);
+    response.status = 302;
+    response.statusDescription = "Found";
+    let headers = response.headers;
+    headers.location = [{
+      "key": "Location",
+      "value": parts.prefix + parts.sourceKey
+    }];
+    console.log("Redirect response is " + JSON.stringify(response, null, 4));
     return Promise.resolve(response);
   };
 
-  return scaler;
+  return recoveryHandler;
 };
 
 // returns a promise of a response
 let processEvent = (event) => {
   let responsePromise;
-  console.log("Have event " + JSON.stringify(event));
-  console.log("Have Records " + JSON.stringify(event.Records));
-  console.log("Have Records[0] " + JSON.stringify(event.Records[0]));
-  console.log("Have Records[0].cf " + JSON.stringify(event.Records[0].cf));
+  console.log("processEvent " + JSON.stringify(event, null, 4));
   let response = event.Records[0].cf.response;
-  console.log("Have Response " + JSON.stringify(response));
+  console.log("CF response is %j", response);
   if (400 <= response.status && response.status < 500) {
     let request = event.Records[0].cf.request;
-    console.log("Request is " + JSON.stringify(response));
+    console.log("CF request was %j", request);
     let imageHandler = ImageHandler(request, response);
     responsePromise = imageHandler.processResponse();
   } else {
@@ -132,9 +119,8 @@ let processEvent = (event) => {
 }
 
 let handler = (event, context, callback) => {
-  console.log("Event is " + JSON.stringify(event));
   processEvent(event).then(response => {
-    console.log("Resolved response is " + JSON.stringify(response));
+    console.log("Resolved response is %j", response);
     callback(null, response);
   });
 };

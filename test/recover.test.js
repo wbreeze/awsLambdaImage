@@ -2,7 +2,8 @@
 
 import { ImageHandler, processEvent } from "../src/recover.js";
 
-let mockEvent = {
+let createMockCF = () => {
+  return {
     "Records": [
         {
             "cf": {
@@ -98,109 +99,123 @@ let mockEvent = {
             }
         }
     ]
+  }
 };
 
-let mockRequest = mockEvent.Records[0].cf.request;
-let mockResponse = mockEvent.Records[0].cf.response;
-let mockBuffer = "this is not an image but it will serve";
-let successResponse = {
-  "headers": {
-    "x-amz-request-id": [
-      {
-        "key": "x-amz-request-id",
-        "value": "AJCP06B0MNSV9JH2"
-      }
-    ],
-    "x-amz-id-2": [
-      {
-        "key": "x-amz-id-2",
-        "value": "acVAebmZ7YB0YHwdDfsUtb+R0dFe91cEkbhTg6cEvVRO2SoBe3sY+WG8Z2zIDQCfpDSqQAQ1zAE="
-      }
-    ],
-    "date": [
-      {
-        "key": "Date",
-        "value": "Mon, 13 Jun 2022 14:46:01 GMT"
-      }
-    ],
-    "server": [
-      {
-        "key": "Server",
-        "value": "AmazonS3"
-      }
-    ],
-    "content-type": [
-      {
-        "key": "Content-Type",
-        "value": "image/jpeg"
-      }
-    ],
-    "transfer-encoding": [
-      {
-        "key": "Transfer-Encoding",
-        "value": "chunked"
-      }
-    ]
-  },
-  "status": 200,
-  "statusDescription": "Success",
-  "body": "this is not an image but it will serve",
-  "bodyEncoding": "base64"
+let createMockResponse = () => {
+  return {
+    "headers": {
+      "x-amz-request-id": [
+        {
+          "key": "x-amz-request-id",
+          "value": "AJCP06B0MNSV9JH2"
+        }
+      ],
+      "x-amz-id-2": [
+        {
+          "key": "x-amz-id-2",
+          "value": "acVAebmZ7YB0YHwdDfsUtb+R0dFe91cEkbhTg6cEvVRO2SoBe3sY+WG8Z2zIDQCfpDSqQAQ1zAE="
+        }
+      ],
+      "date": [
+        {
+          "key": "Date",
+          "value": "Mon, 13 Jun 2022 14:46:01 GMT"
+        }
+      ],
+      "server": [
+        {
+          "key": "Server",
+          "value": "AmazonS3"
+        }
+      ],
+      "location": [
+        {
+          "key": "Location",
+          "value": "/IMG_8932.png"
+        }
+      ],
+      "content-type": [
+        {
+          "key": "Content-Type",
+          "value": "image/jpeg"
+        }
+      ],
+      "transfer-encoding": [
+        {
+          "key": "Transfer-Encoding",
+          "value": "chunked"
+        }
+      ]
+    },
+    "status": 302,
+    "statusDescription": "Found",
+  }
 };
 
 function mockedImageHandler(
-  request, response, failRetrieve, failScale, failWrite
+  request, response, failCheck, failTouch
 ) {
   let handler = ImageHandler(request, response);
-  handler.retrieveImage = (parts) => {
-    return failRetrieve ?
-      Promise.reject("read") :
-      Promise.resolve("this is image data");
+  var didCallCheck = false;
+  var didCallTouch = false;
+
+  handler.checkImage = (parts) => {
+    didCallCheck = true;
+    return failCheck ?
+      Promise.reject(false) :
+      Promise.resolve(true);
   }
-  handler.scaleImage = (parts, data) => {
-    return failScale ?
-      Promise.reject("scale") :
-      ImageHandler.doResponseInParallel(parts, data);
+
+  handler.touchImage = (parts) => {
+    didCallTouch = true;
+    return failTouch ?
+      Promise.reject(false) :
+      Promise.resolve(response);
   }
-  handler.writeImageCache = (parts, buffer) => {
-    return failWrite ?
-      Promise.reject("failed write").catch(err => {
-        console.log("Simulated failed write " + err);
-      }):
-      Promise.resolve("successful write");
-  }
+
   return handler;
 };
 
 describe('ImageHandler processing', () => {
-  it('generates an image response', () => {
-    let ih = mockedImageHandler(mockRequest, mockResponse, false, false, false);
+  let mockCFNotFound = createMockCF();
+  let mockRequest = mockCFNotFound.Records[0].cf.request;
+  let mockResponse = mockCFNotFound.Records[0].cf.response;
+  let mockRedirectResponse = createMockResponse();
+
+  it('checks for the image', () => {
+    let ih = mockedImageHandler(mockRequest, mockResponse, true, true);
+    ih.processResponse().then(() => expect(ih.didCallCheck).toBeTrue);
+  });
+
+  it('tries to touch the image', () => {
+    let ih = mockedImageHandler(mockRequest, mockResponse, true, true);
+    ih.processResponse().then(() => expect(ih.didCallTouch).toBeTrue);
+  });
+
+  it('generates a redirect when source image found and touched', () => {
+    let ih = mockedImageHandler(mockRequest, mockResponse, true, true);
+    expect(ih.processResponse()).resolves.toEqual(mockRedirectResponse);
+  });
+
+  it('generates a redirect when source image found and touch failed', () => {
+    let ih = mockedImageHandler(mockRequest, mockResponse, true, false);
     const parts = { "requiredFormat": "jpeg" };
-    return expect(ih.generateImageResponse(parts, mockBuffer))
-      .resolves.toEqual(successResponse);
+    expect(ih.processResponse()).resolves.toEqual(mockRedirectResponse);
   });
 
-  it('returns original response on failure to read image', () => {
-    let ih = mockedImageHandler(mockRequest, mockResponse, true, true, true);
-    return expect(ih.processResponse()).resolves.toEqual(mockResponse);
-  });
-
-  it('returns original response on failure to scale image', () => {
-    let ih = mockedImageHandler(mockRequest, mockResponse, false, true, true);
-    return expect(ih.processResponse()).resolves.toEqual(mockResponse);
-  });
-
-  it('generates an image response on failure to write cache', () => {
-    let ih = mockedImageHandler(mockRequest, mockResponse, false, false, true);
-    return expect(ih.processResponse()).resolves.toEqual(successResponse);
+  it('returns original response when the image does not exist', () => {
+    let ih = mockedImageHandler(mockRequest, mockResponse, false, false);
+    expect(ih.processResponse()).resolves.toEqual(mockResponse);
   });
 });
 
 describe('Origin response event handling', () => {
   it('passes response unaltered given 200 status', () => {
-    mockEvent.Records[0].cf.response.status = 200;
+    let mockCFFound = createMockCF();
+    let mockResponse = mockCFFound.Records[0].cf.response;
     mockResponse.status = 200;
     mockResponse.statusDescription = "Success";
-    expect(processEvent(mockEvent)).resolves.toEqual(mockResponse);
+    expect(processEvent(mockCFFound)).resolves.toEqual(mockResponse);
   });
 });
