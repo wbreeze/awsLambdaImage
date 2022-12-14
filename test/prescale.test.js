@@ -1,3 +1,8 @@
+'use strict';
+
+import test from 'node:test';
+import assert from 'node:assert/strict';
+
 import { Prescale, handler } from "../src/prescale.js";
 
 const sourceBucket = "name-of-image-bucket";
@@ -44,15 +49,11 @@ function mockedImageHandler(
   return handler;
 }
 
-describe('Prescale processing', () => {
-});
-
-describe('S3 trigger event handling', () => {
-  const pre = Prescale();
-  it('parses the S3 event', () => {
-    const params = pre.decodeEvent(mockEvent);
-    expect(params.srcBucket).toEqual(sourceBucket);
-    expect(params.srcKey).toEqual(sourceKey);
-    expect(params.destBucket).toEqual(sourceBucket + "-derived");
-  });
+// S3 trigger event handling
+const pre = Prescale();
+test('parses the S3 event', () => {
+  const params = pre.decodeEvent(mockEvent);
+  assert.equal(params.srcBucket, sourceBucket);
+  assert.equal(params.srcKey, sourceKey);
+  assert.equal(params.destBucket, sourceBucket + "-derived");
 });
