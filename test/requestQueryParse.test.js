@@ -1,38 +1,41 @@
 'use strict';
 
+import test from 'node:test';
+import assert from 'node:assert/strict';
+
 import { WxHParser } from "../src/wxhParser.js"
 const pwh = WxHParser();
 
-describe('Parses query parameters for dimensions', () => {
-  it('finds width and height', () => {
-    let dims = pwh.parseWxH('300x400')
-    expect(dims.w).toEqual(300)
-    expect(dims.h).toEqual(400)
-  });
+// Parses query parameters for dimensions
 
-  it('returns null if width is not an integer', () => {
-    let dims = pwh.parseWxH('abcx400')
-    expect(dims).toBe(null)
-  });
+test('finds width and height', () => {
+  let dims = pwh.parseWxH('300x400')
+  assert.equal(dims.w, 300)
+  assert.equal(dims.h, 400)
+});
 
-  it('returns null if height is not an integer', () => {
-    let dims = pwh.parseWxH('300xabc')
-    expect(dims).toBe(null)
-  });
+test('returns null if width is not an integer', () => {
+  let dims = pwh.parseWxH('abcx400')
+  assert.equal(dims, null)
+});
 
-  it('returns equal width and height if "x" omitted', () => {
-    let dims = pwh.parseWxH('300')
-    expect(dims.w).toEqual(300)
-    expect(dims.h).toEqual(300)
-  });
+test('returns null if height is not an integer', () => {
+  let dims = pwh.parseWxH('300xabc')
+  assert.equal(dims, null)
+});
 
-  it('returns null if "x" omitted and value is text', () => {
-    let dims = pwh.parseWxH('abc')
-    expect(dims).toBe(null)
-  });
+test('returns equal width and height if "x" omitted', () => {
+  let dims = pwh.parseWxH('300')
+  assert.equal(dims.w, 300)
+  assert.equal(dims.h, 300)
+});
 
-  it('returns null if there are too many "x"', () => {
-    let dims = pwh.parseWxH('300x400x500')
-    expect(dims).toBe(null)
-  });
+test('returns null if "x" omitted and value is text', () => {
+  let dims = pwh.parseWxH('abc')
+  assert.equal(dims, null)
+});
+
+test('returns null if there are too many "x"', () => {
+  let dims = pwh.parseWxH('300x400x500')
+  assert.equal(dims, null)
 });
