@@ -2,7 +2,7 @@
 
 import AWS from 'aws-sdk';
 import Sharp from 'sharp';
-import { URIParser } from './uriParser';
+import { URIParser } from './uriParser.js';
 
 const S3 = new AWS.S3({ apiVersion: '2006-03-01' });
 
@@ -25,10 +25,15 @@ let ImageHandler = (request, response) => {
     // e.g. /images/100x100/webp/image.jpg
     const uriParser = URIParser(request.uri);
     const parts = uriParser.getParts();
-    //console.log("Image locator parts " + JSON.stringify(parts));
+    console.log("Image locator parts " + JSON.stringify(parts));
 
     return recoveryHandler.checkImage(parts)
     .then(result => recoveryHandler.doResponseInParallel(parts, result))
+    .then(result => {
+      return (result.status === 'fulfilled') ?
+        Promise.resolve(result.value) :
+        Promise.reject(result.reason);
+      })
     .catch(err => {
       console.log("Exception while checking source image :%j",err);
       return Promise.resolve(response);
@@ -54,12 +59,7 @@ let ImageHandler = (request, response) => {
         // even if there is exception in touching the object we send the
         // redirect back to the caller
         recoveryHandler.generateRedirectResponse(parts)
-    ])
-    .then(allResults => Promise.resolve(allResults[1]))
-    .catch(err => {
-      console.log("Exception generating response");
-      return Promise.resolve(response);
-    });
+    ]).then(results => results[1]);
   };
 
   // touch image in S3 source bucket to trigger scaling
@@ -83,19 +83,21 @@ let ImageHandler = (request, response) => {
     return request.promise();
   };
 
-  // generate a binary response with resized image
+  // generate a redirect to the source image
   // returns a promise resolved with a response object
   recoveryHandler.generateRedirectResponse = (parts) => {
-    console.log("Here generateRedirectResponse(%j)", parts);
-    response.status = 302;
-    response.statusDescription = "Found";
-    let headers = response.headers;
-    headers.location = [{
-      "key": "Location",
-      "value": parts.prefix + parts.sourceKey
-    }];
-    console.log("Redirect response is " + JSON.stringify(response, null, 4));
-    return Promise.resolve(response);
+    var redirect = {}
+    redirect.status = 302;
+    redirect.statusDescription = "Found";
+    redirect.headers = {
+      "location": [{
+        "key": "Location",
+        "value": parts.prefix + parts.sourceKey
+      }]
+    };
+    redirect.headers.date = response.headers.date;
+    redirect.headers.server = response.headers.server;
+    return Promise.resolve(redirect);
   };
 
   return recoveryHandler;

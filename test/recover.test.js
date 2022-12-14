@@ -1,5 +1,8 @@
 'use strict';
 
+import test from 'node:test';
+import assert from 'node:assert/strict';
+
 import { ImageHandler, processEvent } from "../src/recover.js";
 
 let createMockCF = () => {
@@ -102,120 +105,77 @@ let createMockCF = () => {
   }
 };
 
-let createMockResponse = () => {
-  return {
-    "headers": {
-      "x-amz-request-id": [
-        {
-          "key": "x-amz-request-id",
-          "value": "AJCP06B0MNSV9JH2"
-        }
-      ],
-      "x-amz-id-2": [
-        {
-          "key": "x-amz-id-2",
-          "value": "acVAebmZ7YB0YHwdDfsUtb+R0dFe91cEkbhTg6cEvVRO2SoBe3sY+WG8Z2zIDQCfpDSqQAQ1zAE="
-        }
-      ],
-      "date": [
-        {
-          "key": "Date",
-          "value": "Mon, 13 Jun 2022 14:46:01 GMT"
-        }
-      ],
-      "server": [
-        {
-          "key": "Server",
-          "value": "AmazonS3"
-        }
-      ],
-      "location": [
-        {
-          "key": "Location",
-          "value": "/IMG_8932.png"
-        }
-      ],
-      "content-type": [
-        {
-          "key": "Content-Type",
-          "value": "image/jpeg"
-        }
-      ],
-      "transfer-encoding": [
-        {
-          "key": "Transfer-Encoding",
-          "value": "chunked"
-        }
-      ]
-    },
-    "status": 302,
-    "statusDescription": "Found",
-  }
-};
-
 function mockedImageHandler(
-  request, response, failCheck, failTouch
+  request, response, passCheck, passTouch
 ) {
   let handler = ImageHandler(request, response);
-  var didCallCheck = false;
-  var didCallTouch = false;
+  handler.didCallCheck = false;
+  handler.didCallTouch = false;
 
   handler.checkImage = (parts) => {
-    didCallCheck = true;
-    return failCheck ?
-      Promise.reject(false) :
-      Promise.resolve(true);
+    handler.didCallCheck = true;
+    return passCheck ?
+      Promise.resolve({"modification-date": Date()}) :
+      Promise.reject('Fn checkImage did fail');
   }
 
-  handler.touchImage = (parts) => {
-    didCallTouch = true;
-    return failTouch ?
-      Promise.reject(false) :
-      Promise.resolve(response);
+  handler.touchImage = (parts, attributes) => {
+    handler.didCallTouch = true;
+    return passTouch ?
+      Promise.resolve('Touched') :
+      Promise.reject('Fn touchImage did fail');
   }
 
   return handler;
 };
 
-describe('ImageHandler processing', () => {
-  let mockCFNotFound = createMockCF();
-  let mockRequest = mockCFNotFound.Records[0].cf.request;
-  let mockResponse = mockCFNotFound.Records[0].cf.response;
-  let mockRedirectResponse = createMockResponse();
+let mockCFNotFound = createMockCF();
+let mockRequest = mockCFNotFound.Records[0].cf.request;
+let mockResponse = mockCFNotFound.Records[0].cf.response;
 
-  it('checks for the image', () => {
-    let ih = mockedImageHandler(mockRequest, mockResponse, true, true);
-    ih.processResponse().then(() => expect(ih.didCallCheck).toBeTrue);
-  });
-
-  it('tries to touch the image', () => {
-    let ih = mockedImageHandler(mockRequest, mockResponse, true, true);
-    ih.processResponse().then(() => expect(ih.didCallTouch).toBeTrue);
-  });
-
-  it('generates a redirect when source image found and touched', () => {
-    let ih = mockedImageHandler(mockRequest, mockResponse, true, true);
-    expect(ih.processResponse()).resolves.toEqual(mockRedirectResponse);
-  });
-
-  it('generates a redirect when source image found and touch failed', () => {
-    let ih = mockedImageHandler(mockRequest, mockResponse, true, false);
-    const parts = { "requiredFormat": "jpeg" };
-    expect(ih.processResponse()).resolves.toEqual(mockRedirectResponse);
-  });
-
-  it('returns original response when the image does not exist', () => {
-    let ih = mockedImageHandler(mockRequest, mockResponse, false, false);
-    expect(ih.processResponse()).resolves.toEqual(mockResponse);
-  });
+test('checks for the image', () => {
+  let ih = mockedImageHandler(mockRequest, mockResponse, true, true);
+  return ih.processResponse().then(() => assert.ok(ih.didCallCheck));
 });
 
-describe('Origin response event handling', () => {
-  it('passes response unaltered given 200 status', () => {
-    let mockCFFound = createMockCF();
-    let mockResponse = mockCFFound.Records[0].cf.response;
-    mockResponse.status = 200;
-    mockResponse.statusDescription = "Success";
-    expect(processEvent(mockCFFound)).resolves.toEqual(mockResponse);
-  });
+test('tries to touch the image', () => {
+  let ih = mockedImageHandler(mockRequest, mockResponse, true, true);
+  return ih.processResponse().then(() => assert.ok(ih.didCallTouch));
+});
+
+test('generates a redirect when source image found and touched', () => {
+  let ih = mockedImageHandler(mockRequest, mockResponse, true, true);
+  return ih.processResponse()
+    .then((response) => {
+      assert.equal(response.status, 302);
+      assert.equal(response.statusDescription, 'Found');
+      assert.equal(response.headers.location[0].value, 'IMG_8932.png');
+      return true;
+    });
+});
+
+test('generates a redirect when source image found and touch failed', () => {
+  let ih = mockedImageHandler(mockRequest, mockResponse, true, false);
+  return ih.processResponse()
+    .then((response) => {
+      assert.equal(response.status, 302);
+      assert.equal(response.statusDescription, 'Found');
+      assert.equal(response.headers.location[0].value, 'IMG_8932.png');
+      return true;
+    });
+});
+
+test('returns original response when the image does not exist', () => {
+  let ih = mockedImageHandler(mockRequest, mockResponse, false, false);
+  return ih.processResponse()
+    .then((response) => assert.equal(response, mockResponse));
+});
+
+test('passes response unaltered given 200 status', () => {
+  let mockCFFound = createMockCF();
+  let mockResponse = mockCFFound.Records[0].cf.response;
+  mockResponse.status = 200;
+  mockResponse.statusDescription = "Success";
+  return processEvent(mockCFFound)
+    .then((response) => assert.equal(response, mockResponse));
 });
