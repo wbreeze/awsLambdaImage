@@ -51,7 +51,7 @@ let URIParser = (uri) => {
       try {
         parser.memoizedParts = parser.partsFromMatch(match);
       } catch(err) {
-        console.log("URIParse has poor match for uri " + JSON.stringify(uri) +
+        console.log("URIParser has poor match for uri " + JSON.stringify(uri) +
           " error is " + err);
         parser.memoizedParts = {};
       }
