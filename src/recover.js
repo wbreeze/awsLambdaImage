@@ -1,17 +1,23 @@
 'use strict';
 
-import AWS from 'aws-sdk';
+import {
+  S3Client,
+  CopyObjectCommand,
+  GetObjectAttributesCommand
+} from '@aws-sdk/client-s3';
 import Sharp from 'sharp';
 import { URIParser } from './uriParser.js';
 
-const S3 = new AWS.S3({ apiVersion: '2006-03-01' });
-
-const SRC_BUCKET = process.env.AWS_S3_RESIZE_SRC_NAME;
-const DST_BUCKET = process.env.AWS_S3_RESIZE_DST_NAME;
-const BUCKETS_REGION = process.env.AWS_S3_RESIZE_REGION;
-
 let ImageHandler = (request, response) => {
   let recoveryHandler = {};
+
+  const SRC_BUCKET = process.env.AWS_S3_RESIZE_SRC_NAME;
+  const DST_BUCKET = process.env.AWS_S3_RESIZE_DST_NAME;
+  const BUCKETS_REGION = process.env.AWS_S3_RESIZE_REGION;
+
+  const S3 = new S3Client({
+    region: BUCKETS_REGION
+  });
 
   // returns a promise of response
   recoveryHandler.processResponse = () => {
@@ -42,13 +48,14 @@ let ImageHandler = (request, response) => {
 
   // returns a promise of a GetObjectAttributesCommandOutput object
   recoveryHandler.checkImage = (parts) => {
+    console.log("checkImage parts %j", parts);
     console.log("Checking %j", parts.sourceKey);
     const params = {
       "Bucket": SRC_BUCKET,
-      "Key": parts.sourceKey
+      "Key": "/" + parts.sourceKey,
+      "ObjectAttributes": [ "ETag", "ObjectSize" ]
     };
-    let request = S3.getObjectAttributes(params)
-    return request.promise();
+    return S3.send(new GetObjectAttributesCommand(params));
   };
 
   // returns a promise of response
