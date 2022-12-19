@@ -20,6 +20,10 @@ AWS_S3_RESIZE_REGION - region of the source and derived image buckets
 AWS_S3_RESIZE_SRC_NAME - address of the source image bucket
 AWS_S3_RESIZE_IMAGE_PATH - full path (key) of an image in the source image bucket
 
+For the identity with which to authenticate
+AWS_ACCESS_KEY_ID - The account key from IAM
+AWS_SECRET_ACCESS_KEY - The secret matching the account key
+
 Change `{ skip: 'live test touches S3' }` to
 `{ skip: false }` in order to run the test.
 Invoke as `node --test test/recoverLive.test.js`.
@@ -28,7 +32,10 @@ Invoke as `node --test test/recoverLive.test.js`.
 test('touch image on S3 source bucket', () => {
   const SRC_IMAGE = process.env.AWS_S3_RESIZE_IMAGE_PATH;
   if (SRC_IMAGE === undefined) {
-    assert.fail('Configure environment variable, "AWS_S3_RESIZE_IMAGE_PATH"');
+    assert.fail(
+      'Configure environment variable, "AWS_S3_RESIZE_IMAGE_PATH"' +
+      '\nUse a leading forward slash, e.g. "/Clock.jpg"'
+    );
   };
   let mockCFNotFound = createMockCF();
   let mockRequest = mockCFNotFound.Records[0].cf.request;
