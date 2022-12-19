@@ -73,6 +73,7 @@ let ImageHandler = (request, response) => {
   // returns a promise of a CopyObjectCommandOutput object
   recoveryHandler.touchImage = (parts, attributes) => {
     console.log("Touching %j", parts.sourceKey);
+    console.log("Metadata %j", attributes);
     attributes.LastModified = Date.now;
     const params = {
       Bucket: SRC_BUCKET,
@@ -81,13 +82,12 @@ let ImageHandler = (request, response) => {
       MetadataDirective: 'replace',
       Metadata: attributes
     };
-    request = S3.copyObject(params)
-    .on('error', (err, response) => {
+    return S3.send(new CopyObjectCommand(params))
+    .catch('error', (err, response) => {
       console.log("Exception touching \"" + parts.sourceKey +
         "\" is: " + JSON.stringify(err) +
-        "\n\twith response error :" + JSON.stringify(response.error));
+        "\n\twith response :" + JSON.stringify(response));
     });
-    return request.promise();
   };
 
   // generate a redirect to the source image
