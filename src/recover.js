@@ -5,7 +5,6 @@ import {
   CopyObjectCommand,
   GetObjectAttributesCommand
 } from '@aws-sdk/client-s3';
-import Sharp from 'sharp';
 import { URIParser } from './uriParser.js';
 
 let ImageHandler = (request, response) => {
@@ -48,13 +47,12 @@ let ImageHandler = (request, response) => {
 
   // returns a promise of a GetObjectAttributesCommandOutput object
   recoveryHandler.checkImage = (parts) => {
-    console.log("checkImage parts %j", parts);
-    console.log("Checking %j", parts.sourceKey);
     const params = {
       "Bucket": SRC_BUCKET,
       "Key": "/" + parts.sourceKey,
       "ObjectAttributes": [ "ETag", "ObjectSize" ]
     };
+    console.log("GetObjectAttributesCommand params are %j", params);
     return S3.send(new GetObjectAttributesCommand(params));
   };
 
