@@ -1,2 +1,3 @@
 dist/
 setenv.sh
+.parcel-cache
