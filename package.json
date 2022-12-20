@@ -3,7 +3,6 @@
   "version": "0.0.2",
   "description": "Deliver scaled images from Amazon Cloudfront",
   "repository": "git@github.com:wbreeze/awsLambdaImage.git",
-  "main": "index.js",
   "author": "Douglas Lovell <doug@wbreeze.com>",
   "license": "MIT",
   "private": false,
@@ -12,7 +11,18 @@
     "@aws-sdk/client-s3": "^3.231.0",
     "sharp": "^0.30.7"
   },
+  "devDependencies": {
+    "parcel": "^2.8.2"
+  },
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "dist": "npx parcel build"
+  },
+  "targets": {
+    "recover": {
+      "source": "src/recover.js",
+      "isLibrary": true,
+      "outputFormat": "commonjs"
+    }
   }
 }
