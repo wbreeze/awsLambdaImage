@@ -2,6 +2,7 @@
 
 import { WxHParser } from "./wxhParser.js";
 import { URIParser } from "./uriParser.js";
+import { dimVariants } from "./dimVariants.js";
 
 // parse the image dimensions from the query string.
 // Look for parameter d with value <width>x<height> where width and height
@@ -31,26 +32,11 @@ var QueryStringParser = {
 // If the second to last path element d does not have a valid dimension
 //   specificaton, leave dimensions unspecified and include the last path
 //   element in the memoized prefix.
-var ImageRequestBuilder = (uri, query, accept) => {
+var ImageRequestBuilder = (uri, query, acceptHeader) => {
   var builder = {};
 
-  // defines the allowed dimension requests
-  builder.allowedDimensions = [
-      { w:600, h:600 },
-      { w:1200, h:1200 },
-      { w:2400, h:2400 },
-      { w:3600, h:3600 }
-    ];
-
   // file extension for requests that accept webp format
-  builder.webpExtension = 'webp';
-
-  builder.uriParser = () => {
-    if (builder.memoizedParser === undefined) {
-      builder.memoizedParser = URIParser(uri)
-    }
-    return builder.memoizedParser;
-  }
+  const webpExtension = 'webp';
 
   // determine requested image dimensions from the request
   builder.requestDimension = () => {
@@ -61,11 +47,10 @@ var ImageRequestBuilder = (uri, query, accept) => {
   // find the smallest allowed dimension greater than that requested
   // not finding one, return the greatest allowed size
   builder.allowedDimension = (dimRequested) => {
-    var allowed =
-      builder.allowedDimensions[builder.allowedDimensions.length - 1];
+    var allowed = dimVariants[dimVariants.length - 1];
     if (dimRequested && dimRequested.h && dimRequested.w) {
-      for (var i = 0; i < builder.allowedDimensions.length; ++i) {
-        var dimension = builder.allowedDimensions[i];
+      for (var i = 0; i < dimVariants.length; ++i) {
+        var dimension = dimVariants[i];
         if (dimRequested.h <= dimension.h &&
             dimRequested.w <= dimension.w
         ) {
@@ -77,24 +62,15 @@ var ImageRequestBuilder = (uri, query, accept) => {
     return allowed;
   }
 
-  builder.buildRequestURI = (uri, dimsWxH, acceptWebp) => {
-    var parser = builder.uriParser(uri);
+  builder.buildRequestURI = (dimsWxH, acceptWebp) => {
+    var parser = URIParser(uri);
+    let parts = parser.getPartsFromSourceURI();
+    parts.width = dimsWxH.w;
+    parts.height = dimsWxH.h;
+    const format = acceptWebp ? webpExtension : parts.imageExtension;
+    parts = parser.getKeysUsingFormat(parts, format);
 
-    // build the new uri to be forwarded upstream
-    var parts = [];
-    parts.push(parser.prefix());
-    parts.push(dimsWxH.w + "x" + dimsWxH.h);
-
-    // check support for webp
-    if (acceptWebp) {
-        parts.push(builder.webpExtension);
-    }
-    else{
-        parts.push(parser.imageExtension());
-    }
-    parts.push(parser.imageName() + "." + parser.imageExtension());
-
-    return parts.join("/");
+    return parts.scaledKey;
   };
 
   // build edge request url of format /images/200x200/webp/image.jpg
@@ -104,9 +80,8 @@ var ImageRequestBuilder = (uri, query, accept) => {
 
     if (dims) {
       edgeURI = builder.buildRequestURI(
-        uri,
         builder.allowedDimension(dims),
-        accept.includes(builder.webpExtension)
+        acceptHeader.includes(webpExtension)
       );
     }
 
