@@ -11,7 +11,6 @@ let ImageHandler = (request, response) => {
   let recoveryHandler = {};
 
   const SRC_BUCKET = process.env.AWS_S3_RESIZE_SRC_NAME;
-  const DST_BUCKET = process.env.AWS_S3_RESIZE_DST_NAME;
   const BUCKETS_REGION = process.env.AWS_S3_RESIZE_REGION;
 
   const S3 = new S3Client({
@@ -21,7 +20,6 @@ let ImageHandler = (request, response) => {
   // returns a promise of response
   recoveryHandler.processResponse = () => {
     //console.log("Image source bucket is " + SRC_BUCKET);
-    //console.log("Image destination bucket is " + DST_BUCKET);
     //console.log("Image bucket region is " + BUCKETS_REGION);
     //console.log("Image request is " + JSON.stringify(request, null, 4));
     //console.log("Image response is " + JSON.stringify(response, null, 4));
@@ -29,7 +27,7 @@ let ImageHandler = (request, response) => {
     // read the required path.
     // e.g. /images/100x100/webp/image.jpg
     const uriParser = URIParser(request.uri);
-    const parts = uriParser.getParts();
+    const parts = uriParser.getPartsFromScaledImageURI();
     console.log("Image locator parts " + JSON.stringify(parts));
 
     return recoveryHandler.checkImage(parts)
